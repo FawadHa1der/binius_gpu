@@ -13,7 +13,6 @@ WIP and this is experimental.
 
 
 ## Credit and code borrowed from
-https://github.com/snarkify/zprize-2023-prize1b/
 
 
 
