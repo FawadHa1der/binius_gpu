@@ -12,8 +12,8 @@ an exploration of binius on the GPU. End goal is GPU. First step is C on CPU.
 WIP and this is experimental. 
 
 
-## Credit and code borrowed from
-
+## Credits
+Initial sumcheck borrowed from Irreducible [Binius GPU repo](https://gitlab.com/IrreducibleOSS/binius-gpu)
 
 
 
