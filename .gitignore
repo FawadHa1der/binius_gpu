@@ -1,0 +1,10 @@
+cmake-build-debug/
+.idea/
+.vscode/
+.cache
+.clangd
+compile_commands.json
+*.inp
+*.out
+*.sh
+*.out
