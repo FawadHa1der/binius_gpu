@@ -1,5 +1,5 @@
 # Version stuff
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.25)
 project(ulvt_gpu VERSION 0.1 LANGUAGES CXX CUDA)
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
