@@ -8,3 +8,5 @@ compile_commands.json
 *.out
 *.sh
 *.out
+target/
+build/
