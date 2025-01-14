@@ -1,0 +1,63 @@
+[workspace]
+members = [
+    "./binius_deps/utils",
+    "./binius_deps/field",
+    "./binius_deps/math",
+]
+
+[package]
+name = "hashcaster"
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+anyhow = "1.0.81"
+assert_matches = "1.5.0"
+alloy-primitives = "0.8.14"
+auto_impl = "1.2.0"
+bumpalo = { version = "3.16.0", features = ["collections"] }
+bytemuck = { version = "1.18.0", features = ["derive", "min_const_generics", "must_cast", "extern_crate_alloc", "zeroable_maybe_uninit"] }
+bytes = "1.7.2"
+bytesize = "1.3.0"
+cfg-if = "1.0.0"
+criterion = { version = "0.5.1" }
+derive_more = "0.99.17"
+digest = "0.10.7"
+either = "1.11.0"
+generic-array = "0.14.7"
+getset = "0.1.2"
+groestl_crypto = { package = "groestl", version = "0.10.1" }
+hex-literal = "0.4.1"
+itertools = "0.13.0"
+lazy_static = "1.5.0"
+paste = "1.0.15"
+p3-symmetric = { version = "0.1.0", git = "https://github.com/Plonky3/Plonky3", rev = "72936761" }
+p3-util = { version = "0.1.0", git = "https://github.com/Plonky3/Plonky3", rev = "72936761" }
+proc-macro2 = "1.0.81"
+proptest = "1.2.0"
+quote = "1.0.36"
+rand = { version = "0.8.5", default-features = false, features = ["std_rng"] }
+rayon = "1.8.0"
+seq-macro = "0.3.5"
+sha2 = "0.10.8"
+stackalloc = "1.2.1"
+subtle = "2.5.0"
+syn = { version = "2.0.60", features = ["full"] }
+thiserror = "2.0.3"
+thread_local = "1.1.7"
+tiny-keccak = { version = "2.0.2", features = ["keccak"] }
+trait-set = "0.3.0"
+tracing = "0.1.38"
+tracing-profile = "0.9.0"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+transpose = "0.2.2"
+log = "0.4"
+num-traits = "0.2.19"
+unroll = "0.1.5"
+binius_field = { path = "./binius_deps/field" }
+binius_math = { path = "./binius_deps/math"}
+binius_utils = { path = "./binius_deps/utils" }
+
+[features]
+parallel = []
+default = ["parallel"]

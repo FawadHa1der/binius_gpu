@@ -1,0 +1,21 @@
+[package]
+name = "binius_utils"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytes.workspace = true
+bytemuck = { workspace = true, features = ["extern_crate_alloc"] }
+generic-array.workspace = true
+itertools.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+thread_local.workspace = true
+
+[dev-dependencies]
+rand.workspace = true
+
+[features]
+default = []
+bail_panic = []
+stable_only = []
