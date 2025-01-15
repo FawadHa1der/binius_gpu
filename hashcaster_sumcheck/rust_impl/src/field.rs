@@ -2,13 +2,34 @@ use std::{ops::{Add, AddAssign, BitAnd, BitAndAssign, Mul, MulAssign}};
 use crate::{backend::autodetect::mul_128, precompute::{cobasis_frobenius_table::COBASIS_FROBENIUS, cobasis_table::COBASIS, frobenius_table::FROBENIUS}, utils::{u128_rand, u128_to_bits}};
 use bytemuck::{AnyBitPattern, NoUninit, Pod, Zeroable};
 use num_traits::{One, Zero};
+
 use rand::Rng;
+
+use binius_field::BinaryField128b;
+use binius_field::{
+	arithmetic_traits::{Broadcast, InvertOrZero, MulAlpha, Square},
+	underlier::{NumCast, UnderlierType, UnderlierWithBitOps, WithUnderlier, U1, U2, U4},
+	BinaryField, PackedField, Field
+};
+
 
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Pod, Zeroable)]
 pub struct F128 {
-    pub(crate) raw: u128,
+    // pub(crate) raw: u128,
+    inner_binius_field: BinaryField128b
 }
+
+// pub trait F128{
+//     fn new(x: bool) -> Self;
+//     fn from_raw(raw: u128) -> Self;
+//     fn raw(&self) -> u128;
+//     fn into_raw(self) -> u128;
+//     fn rand<RNG: Rng>(rng: &mut RNG) -> Self;
+//     fn frob(&self, k: i32) -> Self;
+//     fn basis(i: usize) -> Self;
+//     fn cobasis(i: usize) -> Self;
+// }
 
 impl F128 {
     pub fn new(x: bool) -> Self {
@@ -16,15 +37,23 @@ impl F128 {
     }
 
     pub fn from_raw(raw: u128) -> Self {
-        Self{raw}
+        Self {
+            inner_binius_field: BinaryField128b::new(raw),
+        }
+    }
+
+    pub fn from_binius_field(binius_field: BinaryField128b) -> Self {
+        Self {
+            inner_binius_field: binius_field,
+        }
     }
 
     pub fn raw(&self) -> u128 {
-        self.raw
+        u128::from(self.inner_binius_field.to_underlier())
     }
 
     pub fn into_raw(self) -> u128 {
-        self.raw
+        self.inner_binius_field.to_underlier()
     }
 
     pub fn rand<RNG: Rng>(rng: &mut RNG) -> Self {
@@ -62,17 +91,17 @@ impl F128 {
 
 impl Zero for F128 {
     fn zero() -> Self {
-        Self{raw: 0}
+        Self{inner_binius_field:BinaryField128b::ZERO}
     }
 
     fn is_zero(&self) -> bool {
-        self.raw == 0
+        self.inner_binius_field == BinaryField128b::ZERO
     }
 }
 
 impl One for F128 {
     fn one() -> Self {
-        Self{raw: 257870231182273679343338569694386847745}
+        Self{inner_binius_field: BinaryField128b::ONE}
     }
 }
 
@@ -80,7 +109,7 @@ impl Add<F128> for F128 {
     type Output = F128;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self{raw: self.into_raw() ^ rhs.into_raw()}
+        Self{inner_binius_field: self.inner_binius_field + rhs.inner_binius_field}
     }
 }
 
@@ -88,7 +117,7 @@ impl Add<&F128> for F128 {
     type Output = F128;
 
     fn add(self, rhs: &F128) -> Self::Output {
-        Self{raw: self.into_raw() ^ rhs.raw()}
+        Self{inner_binius_field: self.inner_binius_field + rhs.inner_binius_field}
     }
 }
 
@@ -96,7 +125,7 @@ impl BitAnd<F128> for F128 {
     type Output = F128;
     
     fn bitand(self, rhs: F128) -> Self::Output {
-        Self{raw: self.into_raw() & rhs.into_raw()}
+        Self{inner_binius_field: BinaryField128b::new( self.into_raw() & rhs.into_raw() )}
     }
 }
 
@@ -104,39 +133,39 @@ impl BitAnd<&F128> for F128 {
     type Output = F128;
     
     fn bitand(self, rhs: &F128) -> Self::Output {
-        Self{raw: self.into_raw() & rhs.raw()}
+        Self{inner_binius_field: BinaryField128b::new(self.into_raw() & rhs.raw())}
     }
 }
 
 impl AddAssign<F128> for F128 {
     fn add_assign(&mut self, rhs: F128) {
-        self.raw ^= rhs.into_raw()
+        self.inner_binius_field += rhs.inner_binius_field
     }
 }
 
 impl AddAssign<&F128> for F128 {
     fn add_assign(&mut self, rhs: &F128) {
-        self.raw ^= rhs.raw()
+        self.inner_binius_field += rhs.inner_binius_field
     }
 }
 
-impl BitAndAssign<F128> for F128 {
-    fn bitand_assign(&mut self, rhs: F128) {
-        self.raw &= rhs.into_raw();
-    }
-}
+// impl BitAndAssign<F128> for F128 {
+//     fn bitand_assign(&mut self, rhs: F128) {
+//         self.inner_binius_field &= rhs.inner_binius_field;
+//     }
+// }
 
-impl BitAndAssign<&F128> for F128 {
-    fn bitand_assign(&mut self, rhs: &F128) {
-        self.raw &= rhs.raw();
-    }
-}
+// impl BitAndAssign<&F128> for F128 {
+//     fn bitand_assign(&mut self, rhs: &F128) {
+//         self.raw &= rhs.raw();
+//     }
+// }
 
 impl Mul<F128> for F128 {
     type Output = F128;
 
     fn mul(self, rhs: F128) -> Self::Output {
-        Self::from_raw(mul_128(self.raw, rhs.raw))
+        Self{inner_binius_field: self.inner_binius_field * rhs.inner_binius_field}
     }
 }
 
@@ -144,7 +173,8 @@ impl Mul<&F128> for F128 {
     type Output = F128;
 
     fn mul(self, rhs: &F128) -> Self::Output {
-        Self::from_raw(mul_128(self.into_raw(), rhs.raw()))
+        // Self::from_raw(mul_128(self.into_raw(), rhs.raw()))
+        Self{inner_binius_field: self.inner_binius_field * rhs.inner_binius_field}
     }
 }
 
@@ -312,7 +342,7 @@ mod tests {
             } else {
                 panic!();
             }
-            let rhs = (r.raw >> i) % 2;
+            let rhs = (r.raw() >> i) % 2;
             assert!(lhs == rhs);
         }
     }

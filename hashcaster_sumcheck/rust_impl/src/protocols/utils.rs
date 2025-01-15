@@ -759,7 +759,7 @@ mod tests {
         let mut coord_evs = vec![];
 
         for i in 0..128 {
-            let poly_i : Vec<_> = poly.iter().map(|x| F128::new(u128_idx(&x.raw, i))).collect();
+            let poly_i : Vec<_> = poly.iter().map(|x| F128::new(u128_idx(&x.raw(), i))).collect();
             coord_evs.push(evaluate(&poly_i, &pt));
         }
 
@@ -792,7 +792,7 @@ mod tests {
         let eff = EfficientMatrix::new_from_cols(&cols);
         let naive = Matrix::new(cols.iter().map(|x| x.raw()).collect_vec());
         let test_vec = F128::rand(rng);
-        assert!(naive.apply(test_vec.raw) == eff.apply(test_vec).raw);
+        assert!(naive.apply(test_vec.raw()) == eff.apply(test_vec).raw());
     }
 
     #[test]
