@@ -790,9 +790,9 @@ mod tests {
         let rng = &mut OsRng;
         let cols : Vec<_> = repeat_with(|| F128::rand(rng)).take(128).collect();
         let eff = EfficientMatrix::new_from_cols(&cols);
-        let naive = Matrix::new(cols.iter().map(|x| x.raw()).collect_vec());
+        let naive = Matrix::new(cols.iter().map(|x| x.inner_binius_field).collect_vec());
         let test_vec = F128::rand(rng);
-        assert!(naive.apply(test_vec.raw()) == eff.apply(test_vec).raw());
+        assert!(naive.apply(test_vec.inner_binius_field) == eff.apply(test_vec).inner_binius_field);
     }
 
     #[test]

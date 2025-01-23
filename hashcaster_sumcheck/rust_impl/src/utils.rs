@@ -1,7 +1,10 @@
 // This mainly contains linear algebra code required to find necessary bases.
 
+use binius_field::{underlier::WithUnderlier, BinaryField128b};
 use bytemuck::cast;
 use rand::Rng;
+
+use crate::field::F128;
 
 pub fn log2_exact(mut x: usize) -> usize {
     let mut c = 0;
@@ -18,9 +21,9 @@ pub fn log2_exact(mut x: usize) -> usize {
     }
 }
 
-pub fn u128_to_bits(x: u128) -> Vec<bool> {
+pub fn binary128_to_bits(x: BinaryField128b) -> Vec<bool> {
     let mut ret = Vec::with_capacity(128);
-    let bytes = cast::<u128, [u8; 16]>(x);
+    let bytes = cast::<u128, [u8; 16]>(x.to_underlier());
     for i in 0..16 {
         for j in 0..8 {
             ret.push((bytes[i] & (1 << j)) != 0)
@@ -49,23 +52,27 @@ pub fn _u128_from_bits(bits: &[bool]) -> u128 {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Matrix {
-    pub cols: Vec<u128>,
+    pub cols: Vec<BinaryField128b>,
 }
 
 impl Matrix {
-    pub fn new(cols: Vec<u128>) -> Self {
+    pub fn new(cols: Vec<BinaryField128b>) -> Self {
         assert_eq!(cols.len(), 128);
         Self{ cols }
     }
 
+    // pub fn new(cols: Vec<BinaryField128b>) -> Self {
+    //     assert_eq!(cols.len(), 128);
+    //     Self{ cols }
+    // }
 /// Applies 128x128 matrix in column form to 128 vector.
 /// Somewhat efficient.
-    pub fn apply(&self, vec: u128) -> u128 {
-        let matrix = &self.cols;
-        let mut ret = 0;
-        let vec_bits = u128_to_bits(vec);
+    pub fn apply(&self, vec: BinaryField128b) -> BinaryField128b {
+        let matrix: &Vec<BinaryField128b> = &self.cols;
+        let mut ret = BinaryField128b::new(0);
+        let vec_bits = binary128_to_bits(vec);
         for i in 0..128 {
-            if vec_bits[i] {ret ^= matrix[i]}
+            if vec_bits[i] {ret += matrix[i]}
         }
         ret
     }
@@ -81,10 +88,12 @@ impl Matrix {
 
     pub fn diag() -> Self {
         let mut ret = Vec::with_capacity(128);
-        let mut a = 1;
-        for _ in 0..128 {
-            ret.push(a);
-            a <<= 1; 
+        // let mut a = 1;
+        for i in 0..128 {
+            // a <<= 1; 
+            let item = F128::basis(i).inner_binius_field;
+            println!("{:b}", item.to_underlier());
+            ret.push(item);
         }
         Self::new(ret)
     }
@@ -96,7 +105,8 @@ impl Matrix {
     }
 
     pub fn triang(&mut self, i: usize, j: usize) {
-        self.cols[j] ^= self.cols[i];
+        let temp = self.cols[i];
+        self.cols[j] += temp;
     }
 
     pub fn inverse(&self) -> Option<Self> {
@@ -104,13 +114,13 @@ impl Matrix {
         let mut b = Self::diag();
         for i in 0..128 {
             let mut j = i;
-            if !u128_idx(&a.cols[i], i) {
+            if !u128_idx(&a.cols[i].to_underlier(), i) {
                 loop {
                     j += 1;
                     if j == 128 {
                         return None;
                     }
-                    if u128_idx(&a.cols[j], i) {
+                    if u128_idx(&a.cols[j].to_underlier(), i) {
                         a.swap_cols(i, j);
                         b.swap_cols(i, j);
                         break;
@@ -121,7 +131,7 @@ impl Matrix {
             loop {
                 j += 1;
                 if j == 128 {break}
-                if u128_idx(&a.cols[j], i) {
+                if u128_idx(&a.cols[j].to_underlier(), i) {
                     a.triang(i, j);
                     b.triang(i, j);
                 }
@@ -130,7 +140,7 @@ impl Matrix {
         // a is now under-diagonal
         for i in 1..128 {
             for j in 0..i {
-                if u128_idx(&a.cols[j], i) {
+                if u128_idx(&a.cols[j].to_underlier(), i) {
                     a.triang(i, j);
                     b.triang(i, j);
                 }
@@ -157,19 +167,19 @@ mod tests {
         let rng = &mut OsRng;
         let mut matrix = vec![];
         for _ in 0..128 {
-            matrix.push(u128_rand(rng));
+            matrix.push( BinaryField128b::new( u128_rand(rng)));
         }
         let vec = u128_rand(rng);
-        let vec_bits = u128_to_bits(vec);
-        let matrix_bits : Vec<Vec<bool>> = matrix.iter().map(|v|u128_to_bits(*v)).collect();
+        let vec_bits = binary128_to_bits(BinaryField128b::new( vec));
+        let matrix_bits : Vec<Vec<bool>> = matrix.iter().map(|v|binary128_to_bits(*v)).collect();
         let mut expected_answer = vec![false; 128];
         for i in 0..128 {
             for j in 0..128 {
                 expected_answer[j] ^= matrix_bits[i][j] && vec_bits[i]
             }
         }
-        let answer = Matrix::new(matrix).apply(vec);
-        assert_eq!(u128_to_bits(answer), expected_answer);
+        let answer = Matrix::new(matrix).apply(BinaryField128b::new((vec)));
+        assert_eq!(binary128_to_bits(answer), expected_answer);
     }
 
     #[test]
@@ -190,10 +200,10 @@ mod tests {
                 }
             }
         }
-        let test_vector = u128_rand(rng);
+        let test_vector = BinaryField128b::new(u128_rand(rng));
         let inv = matrix.inverse().unwrap();
         assert_eq!(
-            matrix.apply(inv.apply(test_vector)),
+            matrix.apply(inv.apply( test_vector )),
             test_vector,
         );
         assert_eq!(

@@ -1,23 +1,24 @@
-use std::{ops::{Add, AddAssign, BitAnd, BitAndAssign, Mul, MulAssign}};
-use crate::{backend::autodetect::mul_128, precompute::{cobasis_frobenius_table::COBASIS_FROBENIUS, cobasis_table::COBASIS, frobenius_table::FROBENIUS}, utils::{u128_rand, u128_to_bits}};
+use std::{alloc::System, ops::{Add, AddAssign, BitAnd, BitAndAssign, Mul, MulAssign}};
+use crate::{backend::autodetect::mul_128, precompute::{cobasis_frobenius_table::COBASIS_FROBENIUS, cobasis_table::COBASIS, frobenius_table::FROBENIUS}, utils::{u128_rand, binary128_to_bits}};
 use bytemuck::{AnyBitPattern, NoUninit, Pod, Zeroable};
 use num_traits::{One, Zero};
 
 use rand::Rng;
 
-use binius_field::BinaryField128b;
+use binius_field::{BinaryField128b, BinaryField128bPolyval, ExtensionField};
 use binius_field::{
 	arithmetic_traits::{Broadcast, InvertOrZero, MulAlpha, Square},
 	underlier::{NumCast, UnderlierType, UnderlierWithBitOps, WithUnderlier, U1, U2, U4},
-	BinaryField, PackedField, Field
+	BinaryField, PackedField, Field, BinaryField1b
 };
+use binius_math::Matrix;
 
 
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Pod, Zeroable)]
 pub struct F128 {
     // pub(crate) raw: u128,
-    inner_binius_field: BinaryField128b
+    pub inner_binius_field: BinaryField128b
 }
 
 // pub trait F128{
@@ -72,7 +73,7 @@ impl F128 {
         }
         let matrix = &FROBENIUS[k as usize]; 
         let mut ret = 0;
-        let vec_bits = u128_to_bits(self.raw());
+        let vec_bits = binary128_to_bits(self.inner_binius_field);
         for i in 0..128 {
             if vec_bits[i] {ret ^= matrix[i]}
         }
@@ -81,7 +82,18 @@ impl F128 {
 
     pub fn basis(i: usize) -> Self {
         assert!(i < 128);
-        Self::from_raw(1 << i)
+        let f =  <BinaryField128b as ExtensionField<BinaryField1b>>::basis(i);
+        let polyval = <BinaryField128bPolyval as ExtensionField<BinaryField1b>>::basis(i);
+        let transformed_polyval = BinaryField128b::from(polyval.unwrap());
+        let unwraped_f = f.unwrap();
+
+        // assert!(transformed_polyval == unwraped_f);
+        
+        // let f: Result<BinaryField128b, binius_field::Error> =  BinaryField128b::basis(i);
+
+        // let f: BinaryField128b = f.unwrap();
+        // println!("f: {:?}", f);
+        Self::from_binius_field(transformed_polyval)
     }
 
     pub fn cobasis(i: usize) -> Self {
@@ -212,18 +224,23 @@ mod tests {
     #[test]
     fn precompute_frobenius() {
         let path = Path::new("frobenius_table.txt");
-        if path.is_file() {return};
+        // if path.is_file() {return};
         let mut file = File::create(path).unwrap();
         let mut basis = Matrix::diag();
         let mut ret = Vec::with_capacity(128);
         for _ in 0..128 {
             ret.push(basis.cols.clone());
             for j in 0..128 {
-                let x = F128::from_raw(basis.cols[j]);
-                basis.cols[j] = (x * x).raw();
+                let x = F128::from_raw(basis.cols[j].to_underlier());
+                basis.cols[j] = x.inner_binius_field * x.inner_binius_field;
             }
         }
         assert_eq!(basis, Matrix::diag());
+        let ret: Vec<Vec<u128>> = ret.iter()
+            .map(|row| row.iter()
+            .map(|val| val.to_underlier())
+            .collect())
+            .collect();
 
         file.write_all("pub const FROBENIUS : [[u128; 128]; 128] =\n".as_bytes()).unwrap();
         file.write_all(format!("{:?}", ret).as_bytes()).unwrap();
@@ -233,17 +250,27 @@ mod tests {
     #[test]
     fn precompute_cobasis_frobenius() {
         let path = Path::new("cobasis_frobenius_table.txt");
-        if path.is_file() {return};
+        // if path.is_file() {return};
         let mut file = File::create(path).unwrap();
-        let mut cobasis = Matrix::new(COBASIS.to_vec());
+        let cobasis_vec: Vec<BinaryField128b> = COBASIS
+            .iter()
+            .map(|&val| BinaryField128b::new(val))
+            .collect();
+        let mut cobasis = Matrix::new(cobasis_vec);
         let mut ret = Vec::with_capacity(128);
         for _ in 0..128 {
             ret.push(cobasis.cols.clone());
             for j in 0..128 {
-                let x = F128::from_raw(cobasis.cols[j]);
-                cobasis.cols[j] = (x * x).raw();
+                let x = F128::from_binius_field(cobasis.cols[j]);
+                cobasis.cols[j] = x.inner_binius_field * x.inner_binius_field;
             }
         }
+        let ret: Vec<Vec<u128>> = ret.iter()
+            .map(|row| row.iter()
+            .map(|val| val.to_underlier())
+            .collect())
+            .collect();
+
         file.write_all("pub const COBASIS_FROBENIUS : [[u128; 128]; 128] =\n".as_bytes()).unwrap();
         file.write_all(format!("{:?}", ret).as_bytes()).unwrap();
         file.write_all(";".as_bytes()).unwrap();
@@ -253,7 +280,7 @@ mod tests {
     #[test]
     fn precompute_cobasis() {
         let path = Path::new("cobasis_table.txt");
-        if path.is_file() {return};
+        // if path.is_file() {return};
         let mut file = File::create(path).unwrap();
         let mut matrix = vec![vec![false; 128]; 128];        
         for i in 0..128 {
@@ -276,9 +303,12 @@ mod tests {
 
             }
         }
-        let matrix = matrix.iter().map(|v| _u128_from_bits(v)).collect();
+        let matrix: Vec<BinaryField128b> = matrix.iter().map(|v| BinaryField128b::new( _u128_from_bits(v))).collect();
+        // let binius_matrix = binius_math::Matrix::new(matrix);
+     //   let binius_matrix = binius_math::Matrix::new(matrix);
         let matrix = Matrix::new(matrix);
         let ret = matrix.inverse().unwrap().cols;
+        let ret: Vec<u128> = ret.iter().map(|x| x.to_underlier()).collect::<Vec<u128>>();
         file.write_all("pub const COBASIS : [u128; 128] =\n".as_bytes()).unwrap();
         file.write_all(format!("{:?}", ret).as_bytes()).unwrap();
         file.write_all(";".as_bytes()).unwrap();
