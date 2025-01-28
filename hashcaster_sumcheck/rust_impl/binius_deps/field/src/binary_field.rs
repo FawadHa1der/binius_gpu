@@ -602,7 +602,7 @@ macro_rules! impl_field_extension {
 
 				let base_elems = array::from_fn(|i| {
 					<$subfield_name>::new(<$subfield_typ>::num_cast_from(
-						(self.0 >> (i * $subfield_name::N_BITS)),
+							(self.0 >> (i * $subfield_name::N_BITS)),
 					))
 				});
 				base_elems.into_iter()

@@ -5,7 +5,7 @@ use num_traits::{One, Zero};
 
 use rand::Rng;
 
-use binius_field::{BinaryField128b, BinaryField128bPolyval, ExtensionField};
+use binius_field::{arithmetic_traits::TaggedSquare, BinaryField128b, BinaryField128bPolyval, ExtensionField};
 use binius_field::{
 	arithmetic_traits::{Broadcast, InvertOrZero, MulAlpha, Square},
 	underlier::{NumCast, UnderlierType, UnderlierWithBitOps, WithUnderlier, U1, U2, U4},
@@ -50,15 +50,22 @@ impl F128 {
     }
 
     pub fn raw(&self) -> u128 {
-        u128::from(self.inner_binius_field.to_underlier())
+        u128::from(self.inner_binius_field.val())
     }
 
     pub fn into_raw(self) -> u128 {
-        self.inner_binius_field.to_underlier()
+        self.inner_binius_field.val()
     }
 
     pub fn rand<RNG: Rng>(rng: &mut RNG) -> Self {
         Self::from_raw(u128_rand(rng))
+    }
+    pub fn frob_direct(&self, k: u32) -> Self {
+        let mut result = *self;
+        for _ in 0..k {
+            result = result.square(); // Implement square() to perform \(\alpha \mapsto \alpha^2\)
+        }
+        result
     }
 
     /// This function is not efficient.
@@ -82,18 +89,26 @@ impl F128 {
 
     pub fn basis(i: usize) -> Self {
         assert!(i < 128);
-        let f =  <BinaryField128b as ExtensionField<BinaryField1b>>::basis(i);
-        let polyval = <BinaryField128bPolyval as ExtensionField<BinaryField1b>>::basis(i);
-        let transformed_polyval = BinaryField128b::from(polyval.unwrap());
-        let unwraped_f = f.unwrap();
-
+        let f =  <BinaryField128b as ExtensionField<BinaryField1b>>::basis(i).unwrap();
+        // let polyval = BinaryField128bPolyval::from(f);
+        
+        // let polyval = <BinaryField128bPolyval as ExtensionField<BinaryField1b>>::basis(i);
+        // let iterator = <BinaryField128b as ExtensionField<BinaryField1b>>::iter_bases(&f);
+        // for elem in iterator {
+        //     println!("{:?}", elem);
+        // }
+        
+        // let transformed_polyval = BinaryField128b::from(polyval.unwrap());
+        // let unwraped_f = f.unwrap();
         // assert!(transformed_polyval == unwraped_f);
         
         // let f: Result<BinaryField128b, binius_field::Error> =  BinaryField128b::basis(i);
-
         // let f: BinaryField128b = f.unwrap();
         // println!("f: {:?}", f);
-        Self::from_binius_field(transformed_polyval)
+
+        Self::from_binius_field(f)
+        // Self::from_raw(1 << i)
+
     }
 
     pub fn cobasis(i: usize) -> Self {
@@ -220,27 +235,75 @@ mod tests {
     use crate::{precompute::cobasis_table::COBASIS, utils::{Matrix, _u128_from_bits}};
 
     use super::*;
+    #[test]
+    // fn test_precomputed_frobenius_matches_direct() {
+    //     let diag = Matrix::diag();
+    //     for k in 0..128 {
+    //         for j in 0..128 {
+    //             let basis_j = F128::from_binius_field(diag.cols[j]);
+    //             let expected = basis_j.frob_direct(k); // Implement frob_direct as above
+    //             let precomputed = FROBENIUS[k as usize][j];
+    //             assert_eq!(precomputed, expected.inner_binius_field.val(), "Precomputed Frobenius mismatch at k={}, j={}", k, j);
+    //         }
+    //     }
+    // }
+    // fn test_frob_direct() {
+    //     let diag = Matrix::diag();
+    //     for j in 0..128 {
+    //         let basis_j = F128::from_binius_field(diag.cols[j]);
+    //         let mut expected = basis_j;
+    //         for k in 0..128 {
+    //             expected = expected.square();
+    //             let direct_frob = basis_j.frob_direct(k);
+    //             assert_eq!(direct_frob, expected, "frob_direct failed for k={}, j={}", k, j);
+    //         }
+    //     }
+    // }
+    #[test]
+    fn test_bit_ordering() {
+        let diag = Matrix::diag();
+        let basis_j = F128::from_binius_field(diag.cols[0]); // Should have only bit 0 set
+    
+        let vec_bits = binary128_to_bits(basis_j.inner_binius_field);
+        assert!(vec_bits[0], "Bit 0 should be set for the first basis vector");
+        for i in 1..128 {
+            assert!(!vec_bits[i], "Bit {} should not be set for the first basis vector", i);
+        }
+    }
+
 
     #[test]
     fn precompute_frobenius() {
-        let path = Path::new("frobenius_table.txt");
-        // if path.is_file() {return};
-        let mut file = File::create(path).unwrap();
         let mut basis = Matrix::diag();
         let mut ret = Vec::with_capacity(128);
-        for _ in 0..128 {
+        for i in 0..128 {
             ret.push(basis.cols.clone());
             for j in 0..128 {
-                let x = F128::from_raw(basis.cols[j].to_underlier());
+
+                let x = F128::from_binius_field(basis.cols[j]);
                 basis.cols[j] = x.inner_binius_field * x.inner_binius_field;
-            }
+                println!("basis.cols[j] {:?}", basis.cols[j].val());
+                println!("FROBENIUS[i][j] {:?}", FROBENIUS[i][j]);
+                // assert_eq!(basis.cols[j].to_underlier(),FROBENIUS[i][j]);
+            }   
+
+            // // check the data just made
+            // for j in 0..128 {
+            //     let x = F128::from_binius_field(basis.cols[j]);
+            //     let y = F128::from_binius_field(Matrix::diag().cols[j]);
+            //     assert_eq!(x, y);
+            // }
         }
         assert_eq!(basis, Matrix::diag());
         let ret: Vec<Vec<u128>> = ret.iter()
             .map(|row| row.iter()
-            .map(|val| val.to_underlier())
+            .map(|val| val.val())
             .collect())
             .collect();
+
+        let path = Path::new("frobenius_table.txt");
+        if path.is_file() {return};
+        let mut file = File::create(path).unwrap();
 
         file.write_all("pub const FROBENIUS : [[u128; 128]; 128] =\n".as_bytes()).unwrap();
         file.write_all(format!("{:?}", ret).as_bytes()).unwrap();
@@ -249,8 +312,8 @@ mod tests {
 
     #[test]
     fn precompute_cobasis_frobenius() {
-        let path = Path::new("cobasis_frobenius_table.txt");
-        // if path.is_file() {return};
+        let path: &Path = Path::new("cobasis_frobenius_table.txt");
+        if path.is_file() {return};
         let mut file = File::create(path).unwrap();
         let cobasis_vec: Vec<BinaryField128b> = COBASIS
             .iter()
@@ -267,7 +330,7 @@ mod tests {
         }
         let ret: Vec<Vec<u128>> = ret.iter()
             .map(|row| row.iter()
-            .map(|val| val.to_underlier())
+            .map(|val| val.val())
             .collect())
             .collect();
 
@@ -308,7 +371,7 @@ mod tests {
      //   let binius_matrix = binius_math::Matrix::new(matrix);
         let matrix = Matrix::new(matrix);
         let ret = matrix.inverse().unwrap().cols;
-        let ret: Vec<u128> = ret.iter().map(|x| x.to_underlier()).collect::<Vec<u128>>();
+        let ret: Vec<u128> = ret.iter().map(|x| x.val()).collect::<Vec<u128>>();
         file.write_all("pub const COBASIS : [u128; 128] =\n".as_bytes()).unwrap();
         file.write_all(format!("{:?}", ret).as_bytes()).unwrap();
         file.write_all(";".as_bytes()).unwrap();
@@ -343,13 +406,31 @@ mod tests {
 
     #[test]
     fn frobenius() {
-        let rng = &mut OsRng;
-        let a = F128::rand(rng);
-        let mut apow = a;
+        // pick just column i from diag
+        // let col_i = F128::from_binius_field( diag.cols[i] );
+        // Now check col_i.frob(k) == col_i^(2^k)
+
+        // let rng = &mut OsRng;
+        // let a = F128::rand(rng);
+        let diagnal = Matrix::diag();
+        let x = diagnal.cols[0];
+        let y = F128::from_binius_field(x);
+
+        assert_eq!(y, F128::one());
+
         for i in 0..128 {
-            assert_eq!(a.frob(i), apow);
-            apow *= apow;
+            let col_i = F128::from_binius_field(diagnal.cols[i]);
+            let mut apow = col_i;     // start apow = col_i
+            for j in 0..128 {
+                assert_eq!(col_i.frob(j), apow);
+                apow *= apow;         // apow = apow^2, so after j steps => col_i^(2^j)
+            }
         }
+        // let mut apow = a;
+        // for i in 0..128 {
+        //     assert_eq!(a.frob(i), apow);
+        //     apow *= apow;
+        // }
     }
 
     #[test]

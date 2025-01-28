@@ -23,7 +23,8 @@ pub fn log2_exact(mut x: usize) -> usize {
 
 pub fn binary128_to_bits(x: BinaryField128b) -> Vec<bool> {
     let mut ret = Vec::with_capacity(128);
-    let bytes = cast::<u128, [u8; 16]>(x.to_underlier());
+    let bytes = cast::<u128, [u8; 16]>(x.val());
+    
     for i in 0..16 {
         for j in 0..8 {
             ret.push((bytes[i] & (1 << j)) != 0)
@@ -88,12 +89,14 @@ impl Matrix {
 
     pub fn diag() -> Self {
         let mut ret = Vec::with_capacity(128);
-        // let mut a = 1;
+        let mut a = 1;
         for i in 0..128 {
-            // a <<= 1; 
             let item = F128::basis(i).inner_binius_field;
-            println!("{:b}", item.to_underlier());
+            // assert!(a == item.val());
             ret.push(item);
+            a <<= 1; 
+
+            // println!("{:b}", item.val());
         }
         Self::new(ret)
     }
@@ -114,13 +117,13 @@ impl Matrix {
         let mut b = Self::diag();
         for i in 0..128 {
             let mut j = i;
-            if !u128_idx(&a.cols[i].to_underlier(), i) {
+            if !u128_idx(&a.cols[i].val(), i) {
                 loop {
                     j += 1;
                     if j == 128 {
                         return None;
                     }
-                    if u128_idx(&a.cols[j].to_underlier(), i) {
+                    if u128_idx(&a.cols[j].val(), i) {
                         a.swap_cols(i, j);
                         b.swap_cols(i, j);
                         break;
@@ -131,7 +134,7 @@ impl Matrix {
             loop {
                 j += 1;
                 if j == 128 {break}
-                if u128_idx(&a.cols[j].to_underlier(), i) {
+                if u128_idx(&a.cols[j].val(), i) {
                     a.triang(i, j);
                     b.triang(i, j);
                 }
@@ -140,7 +143,7 @@ impl Matrix {
         // a is now under-diagonal
         for i in 1..128 {
             for j in 0..i {
-                if u128_idx(&a.cols[j].to_underlier(), i) {
+                if u128_idx(&a.cols[j].val(), i) {
                     a.triang(i, j);
                     b.triang(i, j);
                 }
@@ -181,7 +184,6 @@ mod tests {
         let answer = Matrix::new(matrix).apply(BinaryField128b::new((vec)));
         assert_eq!(binary128_to_bits(answer), expected_answer);
     }
-
     #[test]
     fn test_invert_matrix() {
         let rng = &mut OsRng;
