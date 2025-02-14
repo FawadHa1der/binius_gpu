@@ -14,17 +14,17 @@ CC      = clang
 CFLAGS  = -O3 -g -Wall -Wextra -std=c11 -arch arm64
 
 # List your source files here:
-SOURCES = field.c 
+SOURCES = field.c field.h 
 
 # Object files are derived from the source files:
 OBJECTS = $(SOURCES:.c=.o)
 
 # Unity sources
 UNITY_DIR = ./
-UNITY_SRC = $(UNITY_DIR)/unity.c
+UNITY_SRC = $(UNITY_DIR)/unity.c 
 
 # Your test file & implementation
-TEST_SRC = test_field.c field.c
+TEST_SRC = test_field.c field.c 
 
 TEST_EXE = run_tests
 

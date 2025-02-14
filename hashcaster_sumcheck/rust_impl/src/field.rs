@@ -89,7 +89,7 @@ impl F128 {
 
     pub fn basis(i: usize) -> Self {
         assert!(i < 128);
-        let f =  <BinaryField128b as ExtensionField<BinaryField1b>>::basis(i).unwrap();
+        // let f =  <BinaryField128b as ExtensionField<BinaryField1b>>::basis(i).unwrap();
         // let polyval = BinaryField128bPolyval::from(f);
         
         // let polyval = <BinaryField128bPolyval as ExtensionField<BinaryField1b>>::basis(i);
@@ -106,8 +106,8 @@ impl F128 {
         // let f: BinaryField128b = f.unwrap();
         // println!("f: {:?}", f);
 
-        Self::from_binius_field(f)
-        // Self::from_raw(1 << i)
+        // Self::from_binius_field(f)
+        Self::from_raw(1 << i)
 
     }
 
@@ -279,11 +279,10 @@ mod tests {
         for i in 0..128 {
             ret.push(basis.cols.clone());
             for j in 0..128 {
-
                 let x = F128::from_binius_field(basis.cols[j]);
                 basis.cols[j] = x.inner_binius_field * x.inner_binius_field;
-                println!("basis.cols[j] {:?}", basis.cols[j].val());
-                println!("FROBENIUS[i][j] {:?}", FROBENIUS[i][j]);
+                // println!("basis.cols[j] {:?}", basis.cols[j].val());
+                // println!("FROBENIUS[i][j] {:?}", FROBENIUS[i][j]);
                 // assert_eq!(basis.cols[j].to_underlier(),FROBENIUS[i][j]);
             }   
 
@@ -367,8 +366,6 @@ mod tests {
             }
         }
         let matrix: Vec<BinaryField128b> = matrix.iter().map(|v| BinaryField128b::new( _u128_from_bits(v))).collect();
-        // let binius_matrix = binius_math::Matrix::new(matrix);
-     //   let binius_matrix = binius_math::Matrix::new(matrix);
         let matrix = Matrix::new(matrix);
         let ret = matrix.inverse().unwrap().cols;
         let ret: Vec<u128> = ret.iter().map(|x| x.val()).collect::<Vec<u128>>();
