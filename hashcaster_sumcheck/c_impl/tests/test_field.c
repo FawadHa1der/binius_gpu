@@ -4,9 +4,9 @@
 #include <arm_neon.h>  // If you need NEON intrinsics
 #include "unity.h"
 
-#include "field.h"
+#include "../field.h"
 
-static void test_f128_is_field(void)
+void test_f128_is_field(void)
 {
     F128 a = f128_rand(); 
     F128 b = f128_rand();
@@ -68,7 +68,7 @@ static void test_f128_is_field(void)
  *   apow *= apow
  *   for i in [0..128)
  *------------------------------------------------------*/
-static void test_frobenius(void)
+void test_frobenius(void)
 {
     F128 a = f128_rand();
     F128 apow = a;
@@ -93,7 +93,7 @@ static void test_frobenius(void)
  *     check bit == 0 or 1
  *     compare to (r.raw >> i) & 1
  *------------------------------------------------------*/
-static void test_pi_as_expected(void)
+void test_pi_as_expected(void)
 {
     F128 r = f128_rand();
 
@@ -149,7 +149,7 @@ static void test_pi_as_expected(void)
  *     answer += basis(i)* pi(i,a_orbit)* pi(i,b_orbit)
  *   check answer == (a & b)
  *------------------------------------------------------*/
-static void test_twists_logic_and(void)
+void test_twists_logic_and(void)
 {
     F128 a = f128_rand();
     F128 b = f128_rand();
@@ -181,29 +181,4 @@ static void test_twists_logic_and(void)
     F128 expected = f128_bitand(a, b);
 
     TEST_ASSERT_TRUE(f128_eq(answer, expected));
-}
-// Unity expects these, even if empty
-void setUp(void)
-{
-    // optional: do something before each test
-}
-
-void tearDown(void)
-{
-    // optional: do something after each test
-}
-
-/*-------------------------------------------------------
- * Unity's main test runner
- --------------------------------------------------------*/
-int main(void)
-{
-    UNITY_BEGIN();
-
-    RUN_TEST(test_f128_is_field);
-    RUN_TEST(test_frobenius);
-    RUN_TEST(test_pi_as_expected);
-    RUN_TEST(test_twists_logic_and);
-
-    return UNITY_END();
 }

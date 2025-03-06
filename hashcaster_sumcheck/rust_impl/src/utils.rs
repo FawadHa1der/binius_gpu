@@ -62,10 +62,6 @@ impl Matrix {
         Self{ cols }
     }
 
-    // pub fn new(cols: Vec<BinaryField128b>) -> Self {
-    //     assert_eq!(cols.len(), 128);
-    //     Self{ cols }
-    // }
 /// Applies 128x128 matrix in column form to 128 vector.
 /// Somewhat efficient.
     pub fn apply(&self, vec: BinaryField128b) -> BinaryField128b {

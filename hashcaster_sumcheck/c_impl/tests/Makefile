@@ -14,21 +14,24 @@ CC      = clang
 CFLAGS  = -O3 -g -Wall -Wextra -std=c11 -arch arm64
 
 # List your source files here:
-SOURCES = field.c field.h matrix_utils.c matrix_utils.h 
+SOURCES = ../field.c ../field.h ../matrix_utils.c ../matrix_utils.h tests_main.c test_field.c
 
 # Object files are derived from the source files:
-OBJECTS = $(SOURCES:.c=.o)
+OBJECTS = $(filter %.o,$(SOURCES:.c=.o))
 
+# Unity sources
+UNITY_DIR = ./
+UNITY_SRC = $(UNITY_DIR)/unity.c 
 
 # Your test file & implementation
-TEST_SRC =  field.c matrix_utils.c
+TEST_SRC = test_field.c ../field.c ../matrix_utils.c tests_main.c test_matrix_utils.c
 
 TEST_EXE = run_tests
 
 test: $(TEST_EXE)
 
-$(TEST_EXE):  $(SOURCES)
-	$(CC) $(CFLAGS) -I  $(SOURCES) -o $@
+$(TEST_EXE): $(UNITY_SRC) $(TEST_SRC)
+	$(CC) $(CFLAGS) -I$(UNITY_DIR) $(UNITY_SRC) $(TEST_SRC) -o $@
 
 
 # The final executable name:
@@ -47,4 +50,4 @@ $(TARGET): $(OBJECTS)
 
 # Clean up intermediates and the final binary
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	# rm -f $(OBJECTS) $(TARGET)
