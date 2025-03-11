@@ -14,16 +14,15 @@ CC      = clang
 CFLAGS  = -O3 -g -Wall -Wextra -std=c11 -arch arm64
 
 # List your source files here:
-SOURCES = field.c field.h matrix_utils.c matrix_utils.h 
+SOURCES = field.c matrix_utils.c  gf128_polyval.c
 
 # Object files are derived from the source files:
 OBJECTS = $(SOURCES:.c=.o)
 
-
 # Your test file & implementation
-TEST_SRC =  field.c matrix_utils.c
+TEST_SRC =  field.c matrix_utils.c gf128_polyval.c field.h matrix_utils.h 
 
-TEST_EXE = run_tests
+TEST_EXE = hashcaster
 
 test: $(TEST_EXE)
 
@@ -47,4 +46,4 @@ $(TARGET): $(OBJECTS)
 
 # Clean up intermediates and the final binary
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	# rm -f $(OBJECTS) $(TARGET)

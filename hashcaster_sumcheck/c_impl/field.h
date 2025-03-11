@@ -4,15 +4,20 @@
 #ifndef F128_H
 #define F128_H
 
+// #define TOWER_BASIS 1
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <assert.h>
 #include <arm_neon.h>
 #include "types.h"
+
+
 #include "cobasis_table.h"
 #include "frobenius_table.h"
 #include "cobasis_frobenius_table.h"
+
 
 /**
  * Convert a 128-bit struct into raw 128 bits (e.g., two uint64_ts).
@@ -59,7 +64,12 @@ static inline F128 f128_zero(void)
 
 static inline F128 f128_one(void)
 {
-    return f128_from_raw(0x0000000000000001ULL, 0x0000000000000000ULL);
+// 257870231182273679343338569694386847745}
+    #ifdef TOWER_BASIS
+        return f128_from_raw(0x0000000000000001ULL, 0x0000000000000000ULL);
+    #else
+        return f128_from_raw(0x0000000000000001ULL, 0xC200000000000000ULL);
+    #endif
 }
 
 /**
@@ -67,7 +77,9 @@ static inline F128 f128_one(void)
  */
 static inline bool f128_is_zero(const F128 x)
 {
-    return (x.low == 0ULL && x.high == 0ULL);
+    F128 zero = f128_zero();
+    return f128_eq(x, zero);
+    // return (x.low == 0ULL && x.high == 0ULL);
 }
 
 /**
@@ -75,7 +87,8 @@ static inline bool f128_is_zero(const F128 x)
  */
 static inline bool f128_is_one(const F128 x)
 {
-    return (x.low == 1ULL && x.high == 0ULL);
+    F128 one = f128_one();
+    return f128_eq(x, one);
 }
 
 
@@ -226,17 +239,6 @@ static inline F128 f128_cobasis(int i)
     return COBASIS[i];
 }
 
-/**
- * In Rust:  pub fn pi(i: usize, twists: &[F128]) -> F128 { ... }
- * We do the same in C, but using pointers.
- * This computes \sum_j (COBASIS_FROBENIUS[j][i]^(2^j)) * twists[j], or
- * more exactly the version in your Rust code:
- *   \sum_j COBASIS_FROBENIUS[j][i] * twists[j].
- *
- * But from your code snippet:
- *   ret += F128::from_raw(COBASIS_FROBENIUS[j][i]) * twists[j];
- * so we just replicate that.
- */
 extern const F128 COBASIS_FROBENIUS[128][128]; // Defined in cobasis_frobenius_table.h
 
 static inline F128 pi_calc(int i, const F128 *twists /* array of size 128 */)
@@ -248,6 +250,7 @@ static inline F128 pi_calc(int i, const F128 *twists /* array of size 128 */)
         F128 tmpmul = f128_mul(COBASIS_FROBENIUS[j][i], twists[j]);
         ret = f128_add(ret, tmpmul);
     }
+
     return ret;
 }
 

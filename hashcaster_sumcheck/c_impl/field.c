@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <arm_neon.h>
-
+#include "gf128_polyval.h"
 
 const uint8_t EXP_TABLE[256] = {
     0x1,  0x13, 0x43, 0x66, 0xab, 0x8c, 0x60, 0xc6, 0x91, 0xca, 0x59, 0xb2, 0x6a, 0x63, 0xf4, 0x53,
@@ -197,8 +197,12 @@ uint64_t binmul64(uint64_t v1, uint64_t v2, uint32_t length, bool is_constant) {
  * another source.
  */
 F128 mul_128(const F128 a, const F128 b)
-{
-    F128 res = binmul128(a, b, 128);
+{   
+    #ifdef TOWER_BASIS
+        F128 res = binmul128(a, b, 128);
+    #else
+        F128 res = gf128_mul_polyval(a, b);
+    #endif
     return res;
 }
 

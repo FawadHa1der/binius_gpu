@@ -179,6 +179,5 @@ void test_twists_logic_and(void)
 
     // expected = a & b
     F128 expected = f128_bitand(a, b);
-
     TEST_ASSERT_TRUE(f128_eq(answer, expected));
 }

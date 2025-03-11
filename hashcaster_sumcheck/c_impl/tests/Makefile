@@ -24,7 +24,7 @@ UNITY_DIR = ./
 UNITY_SRC = $(UNITY_DIR)/unity.c 
 
 # Your test file & implementation
-TEST_SRC = test_field.c ../field.c ../matrix_utils.c tests_main.c test_matrix_utils.c
+TEST_SRC = test_field.c ../field.c ../matrix_utils.c tests_main.c test_matrix_utils.c ../gf128_polyval.c
 
 TEST_EXE = run_tests
 
@@ -34,20 +34,6 @@ $(TEST_EXE): $(UNITY_SRC) $(TEST_SRC)
 	$(CC) $(CFLAGS) -I$(UNITY_DIR) $(UNITY_SRC) $(TEST_SRC) -o $@
 
 
-# The final executable name:
-TARGET  = mul_128_test
-
-# The default make rule:
-all: $(TARGET)
-
-# Link rule: combine all object files into one executable
-$(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $(OBJECTS)
-
-# Compile rule: how to compile .c into .o
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
 # Clean up intermediates and the final binary
 clean:
-	# rm -f $(OBJECTS) $(TARGET)
+	 rm -rf $(TEST_EXE) $(TEST_EXE).dSYM
