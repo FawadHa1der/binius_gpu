@@ -42,6 +42,16 @@ static inline F128 f128_from_raw(uint64_t lo, uint64_t hi)
     return out;
 }
 
+static inline F128 f128_from_uint64(uint64_t lo)
+{
+    F128 out;
+    out.low = lo;
+    out.high = 0;
+    return out;
+}
+
+
+
 /**
  * f128_eq - Checks if two F128 elements are equal.
  *

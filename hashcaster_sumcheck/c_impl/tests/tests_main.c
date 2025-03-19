@@ -6,7 +6,7 @@
 
 #include "test_field.h"
 #include "test_matrix_utils.h"
-
+#include "test_mle.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -32,6 +32,12 @@ int main(void)
 
     RUN_TEST(test_apply_matrix);
     RUN_TEST(test_invert_matrix);
+
+    // MLE tests
+    RUN_TEST(test_eq_eval_basic);
+    RUN_TEST(test_eq_eval_identity);
+    RUN_TEST(test_eq_eval_empty);
+    RUN_TEST(test_eq_poly_sequence_cross_check);
 
     return UNITY_END();
 }

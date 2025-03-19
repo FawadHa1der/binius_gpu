@@ -14,7 +14,7 @@ CC      = clang
 CFLAGS  = -O3 -g -Wall -Wextra -std=c11 -arch arm64
 
 # List your source files here:
-SOURCES = ../field.c ../field.h ../matrix_utils.c ../matrix_utils.h tests_main.c test_field.c
+SOURCES = ../field.c ../field.h ../matrix_utils.c ../matrix_utils.h tests_main.c test_field.c ../mle_poly.c
 
 # Object files are derived from the source files:
 OBJECTS = $(filter %.o,$(SOURCES:.c=.o))
@@ -24,7 +24,7 @@ UNITY_DIR = ./
 UNITY_SRC = $(UNITY_DIR)/unity.c 
 
 # Your test file & implementation
-TEST_SRC = test_field.c ../field.c ../matrix_utils.c tests_main.c test_matrix_utils.c ../gf128_polyval.c
+TEST_SRC = test_field.c ../field.c ../matrix_utils.c tests_main.c test_matrix_utils.c ../gf128_polyval.c test_mle.c ../mle_poly.c
 
 TEST_EXE = run_tests
 

@@ -1,48 +1,61 @@
 #include "frob_utils.h"
 #include "field.h"
 
-/* eq_poly:
- *   - pt: array of F128, length = l
- *   - l: length of pt
- *   - out_len: (output) the size of the returned array = 2^l
- * returns newly allocated array of F128
- */
-F128* eq_poly(const F128 *pt, size_t l, size_t *out_len)
+static void test_eq_poly_sequence_cross_check(void)
 {
-    // The result length is 2^l
-    size_t n = ((size_t)1 << l);
-    *out_len = n;
+    // We'll assume we have a random generator, or stub. Pass NULL if we don't:
+    void *rng = NULL; 
+    size_t n = 20;
+    // 1) generate random points
+    Points points = points_random(n, rng);
 
-    // allocate ret array
-    F128 *ret = malloc(n * sizeof(F128));
-    if (!ret) {
-        fprintf(stderr, "eq_poly: out of memory\n");
-        exit(1);
-    }
+    // 2) eq_sequence
+    size_t seq_len = 0;
+    MultilinearLagrangianPolynomial *eq_sequence =
+        to_eq_poly_sequence(&points, &seq_len);
 
-    // 1) ret[0] = 1, and presumably set the rest to 0
-    //    but we'll do that in the loop's logic. We'll at least zero them:
-    for (size_t i = 0; i < n; i++) {
-        ret[i].low  = 0ULL;
-        ret[i].high = 0ULL;
-    }
-    // ret[0] = 1
-    ret[0] = f128_one();
+    // check eq_sequence length = points.length + 1
+    TEST_ASSERT_EQUAL_UINT(points.length + 1, seq_len);
 
-    // 2) for i in [0..l):
-    for (size_t i = 0; i < l; i++) {
-        // half = 1 << i
-        size_t half = ((size_t)1 << i);
+    // check eq_sequence[0] = polynomial with [F128::ONE]
+    // We'll assume eq_sequence[0].length == 1 and eq_sequence[0].coeffs[0] == one
+    TEST_ASSERT_EQUAL_UINT(1, eq_sequence[0].length);
+    F128 one = f128_one();
+    TEST_ASSERT_TRUE( f128_eq(eq_sequence[0].coeffs[0], one) );
 
-        // for j in [0..half):
-        //   ret[j + half] = pt[i] * ret[j];
-        //   ret[j] += ret[j + half];
-        for (size_t j = 0; j < half; j++) {
-            F128 temp = f128_mul(pt[i], ret[j]);
-            ret[j + half] = temp;
-            ret[j] = f128_add(ret[j], temp);
+    // cross-check each polynomial in [1..seq_len)
+    for (size_t i = 1; i < seq_len; i++) {
+        // "pts" = sub-slice of 'points' from (points.length - i) to end
+        // We'll do a small function "points_subrange" or a direct approach:
+        size_t start = points.length - i;
+        size_t size  = i; 
+        // build sub-points
+        Points sub_pts;
+        sub_pts.length = size;
+        sub_pts.data = (F128*)malloc(size * sizeof(F128));
+        for (size_t j = 0; j < size; j++) {
+            sub_pts.data[j] = points.data[start + j];
         }
+
+        // direct computation => poly2 = to_eq_poly(&sub_pts)
+        MultilinearLagrangianPolynomial poly2 = to_eq_poly(&sub_pts);
+
+        // eq_sequence[i] should match poly2
+        TEST_ASSERT_TRUE( mlp_eq(&eq_sequence[i], &poly2) );
+
+        // cleanup
+        free(sub_pts.data);
+        free(poly2.coeffs);  // if that's how memory is done
     }
 
-    return ret;
+    // free eq_sequence 
+    for (size_t i=0; i < seq_len; i++) {
+        free(eq_sequence[i].coeffs);
+    }
+    free(eq_sequence);
+
+    // free points
+    free(points.data);
+
+    printf("test_eq_poly_sequence_cross_check PASSED\n");
 }
