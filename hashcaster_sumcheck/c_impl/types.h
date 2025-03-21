@@ -15,6 +15,10 @@ typedef struct {
 
 typedef uint128_t F128;
 
+// typedef struct {
+//     void* elems;
+//     size_t len;
+// } Vector; // generic type for all arrays. 
 
 /*---------------------------
  * Helper union to reinterpret

@@ -45,14 +45,16 @@ Points points_random(size_t n){
         p.elems = NULL;
         return p;
     }
+
     p.elems = (F128*)malloc(n * sizeof(F128));
     if (!p.elems) {
         // handle allocation failure
         p.len = 0;
         return p;
     }
+
     for (size_t i = 0; i < n; i++) {
-        p.elems[i] = f128_rand();
+        ((F128*)(p.elems))[i] = f128_rand();
     }
     return p;
 }
@@ -172,6 +174,7 @@ void test_eq_poly_sequence_cross_check(void)
         sub_pts.len = size;
         sub_pts.elems = (F128*)malloc(size * sizeof(F128));
         for (size_t j = 0; j < size; j++) {
+            
             sub_pts.elems[j] = points.elems[start + j];
         }
 
@@ -195,5 +198,173 @@ void test_eq_poly_sequence_cross_check(void)
     // free points
     free(points.elems);
 
-    printf("test_eq_poly_sequence_cross_check PASSED\n");
+    // printf("test_eq_poly_sequence_cross_check PASSED\n");
+}
+
+
+// Test function for to_points_inv_orbit with ones
+void test_to_points_inv_orbit_ones(void) {
+    // Generate a set of 5 points initialized to F128_ONE
+    Points initial_points;
+    initial_points.len = 5;
+    initial_points.elems = malloc(sizeof(F128) * initial_points.len);
+    
+    for (size_t i = 0; i < initial_points.len; i++) {
+        initial_points.elems[i] = f128_one();
+    }
+
+    // Compute the inverse orbit
+    INVERSE_ORBIT_POINTS *points_inv_orbit = to_f128_inv_orbit(&initial_points);
+
+    // Validate the length of the inverse orbit
+    TEST_ASSERT_EQUAL_INT(128, points_inv_orbit->len);
+
+    // Validate that all entries in the orbit are ones
+    for (size_t i = 0; i < 128; i++) {
+        for (size_t j = 0; j < initial_points.len; j++) {
+            F128 one = f128_one();
+
+            TEST_ASSERT_EQUAL_UINT64(one.low, points_inv_orbit->array_of_points[i].elems[j].low);
+            TEST_ASSERT_EQUAL_UINT64(one.high, points_inv_orbit->array_of_points[i].elems[j].high);
+        }
+    }
+
+    // Free allocated memory
+    for (size_t i = 0; i < 128; i++) {
+        free(points_inv_orbit->array_of_points[i].elems);
+    }
+    free(points_inv_orbit->array_of_points);
+    free(points_inv_orbit);
+    free(initial_points.elems);
+}
+
+
+void test_to_points_inv_orbit_last_element(void) {
+    
+    // Define two initial points in the binary field with fixed values.
+    
+    F128 pt1 = f128_from_uint64(1234);  // Equivalent to BinaryField128b::new(1234)
+    F128 pt2 = f128_from_uint64(5678);  // Equivalent to BinaryField128b::new(5678)
+
+    // Create the initial Points instance with the two points
+    Points initial_points;
+    initial_points.len = 2;
+    initial_points.elems = malloc(sizeof(F128) * initial_points.len);
+    initial_points.elems[0] = pt1;
+    initial_points.elems[1] = pt2;
+
+    // Call to_points_inv_orbit() to compute the inverse orbit.
+    // Points *points_inv_orbit = to_points_inv_orbit(&initial_points);
+    INVERSE_ORBIT_POINTS *points_inv_orbit = to_f128_inv_orbit(&initial_points);
+
+    // Initialize expected results
+    Points *expected_points = malloc(sizeof(Points) * 128);
+    for (size_t i = 0; i < 128; i++) {
+        expected_points[i].len = 2;
+        expected_points[i].elems = malloc(sizeof(F128) * 2);
+
+        // Frobenius squaring
+        pt1 = f128_mul(pt1, pt1);
+        pt2 = f128_mul(pt2, pt2);
+
+        expected_points[i].elems[0] = pt1;
+        expected_points[i].elems[1] = pt2;
+    }
+
+    // Reverse the expected results to match function output.
+    for (size_t i = 0; i < 64; i++) {
+        Points temp = expected_points[i];
+        expected_points[i] = expected_points[127 - i];
+        expected_points[127 - i] = temp;
+    }
+
+    // Compare computed orbit with expected results
+    for (size_t i = 0; i < 128; i++) {
+        TEST_ASSERT_EQUAL_MEMORY(expected_points[i].elems, points_inv_orbit->array_of_points[i].elems, sizeof(F128) * 2);
+    }
+
+    // Free allocated memory
+    for (size_t i = 0; i < 128; i++) {
+        free(points_inv_orbit->array_of_points[i].elems);
+        free(expected_points[i].elems);
+    }
+    free(points_inv_orbit);
+    free(expected_points);
+    free(initial_points.elems);
+}
+
+
+/******************************************************************************
+ * test_eq_sums
+ *
+ * This test constructs an equality polynomial from the points [1,2,3,4],
+ * computes its equality sums, then manually computes the subset sums block‐by‐block.
+ * Finally, it asserts that the computed equality sums match the expected ones.
+ *****************************************************************************/
+void test_eq_sums(void) {
+    // --- Step 1: Create the Points from [1,2,3,4] ---
+    F128 *pts_arr = malloc(4 * sizeof(F128));
+    pts_arr[0] = f128_from_uint64(1ULL);
+    pts_arr[1] = f128_from_uint64(2ULL);
+    pts_arr[2] = f128_from_uint64(3ULL);
+    pts_arr[3] = f128_from_uint64(4ULL);
+
+    Points* points = malloc(sizeof(Points));
+    points->len = 4;
+    points->elems = pts_arr;
+    // Points points = points_from_array(pts_arr, 4);
+
+    // --- Step 2: Compute the equality polynomial ---
+    MLE_POLY* poly = points_to_eq_poly(points);
+
+    
+    // --- Step 3: Compute the equality sums ---
+    Points *computed_eqs = eq_sums(poly);
+    
+    // --- Step 4: Manually compute expected sums ---
+    // We assume poly.length is divisible by 8.
+    TEST_ASSERT_EQUAL_INT(0, poly->len % 8);
+    size_t num_blocks = poly->len / 8;
+    size_t expected_total = 256 * num_blocks;
+    F128 *expected_eqs = malloc(expected_total * sizeof(F128));
+    if (!expected_eqs) {
+        TEST_FAIL_MESSAGE("Memory allocation failed for expected_eqs.");
+    }
+    
+    // For each block of 8 coefficients:
+    for (size_t block = 0; block < num_blocks; block++) {
+        size_t block_start = block * 8;
+        F128 *block_coeffs = &poly->coeffs[block_start];
+        
+        // For each subset index from 0 to 255:
+        for (size_t subset = 0; subset < 256; subset++) {
+            F128 sum = f128_zero();
+            // Iterate over the 8 bits of 'subset'
+            for (size_t bit = 0; bit < 8; bit++) {
+                if (subset & (1 << bit)) {
+                    sum = f128_add(sum, block_coeffs[bit]);
+                }
+            }
+            expected_eqs[block * 256 + subset] = sum;
+        }
+    }
+    
+    // --- Step 5: Compare computed_eqs and expected_eqs ---
+    TEST_ASSERT_EQUAL_UINT(expected_total, computed_eqs->len);
+    // print out both the arrays
+
+    for (size_t i = 0; i < expected_total; i++) {
+        if (!f128_eq(computed_eqs->elems[i], expected_eqs[i])) {
+            char msg[128];
+            sprintf(msg, "Mismatch at index %zu", i);
+            TEST_FAIL_MESSAGE(msg);
+        }
+    }
+    
+    // --- Cleanup ---
+    free(computed_eqs);
+    free(expected_eqs);
+    free(poly->coeffs);
+    free(points->elems);
+    free(points);
 }

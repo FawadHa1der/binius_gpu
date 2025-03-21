@@ -38,6 +38,9 @@ int main(void)
     RUN_TEST(test_eq_eval_identity);
     RUN_TEST(test_eq_eval_empty);
     RUN_TEST(test_eq_poly_sequence_cross_check);
+    RUN_TEST(test_to_points_inv_orbit_ones);
+    RUN_TEST(test_to_points_inv_orbit_last_element);
+    RUN_TEST(test_eq_sums);
 
     return UNITY_END();
 }

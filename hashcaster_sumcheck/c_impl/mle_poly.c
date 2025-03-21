@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 /******************************************************************************
  * points_default
  *   Returns an empty Points with len=0, elems=NULL.
@@ -127,39 +128,63 @@ F128* clone_f128s(const F128 *src, size_t length)
     return dst;
 }
 
-// a 2D array of F128s. Each row is a snapshot of the orbit
-F128** to_f128_inv_orbit(const Points* points)
+Points* clone_points(const Points *src)
 {
-    // We'll produce 128 snapshots
-    const size_t N = 128;
-    F128 **snapshots = (F128**)malloc(N * sizeof(F128*));
-    if (!snapshots) {
+    Points* dst;
+    dst = (Points *)malloc(sizeof(Points));
+    if (!dst) {
+        // handle error as needed
+        return NULL;
+    }
+    dst->len = src->len;
+    dst->elems = clone_f128s(src->elems, src->len);
+
+    return dst;
+}
+
+
+// a 2D array of F128s. Each row is a snapshot of the orbit
+INVERSE_ORBIT_POINTS* to_f128_inv_orbit(const Points* input_points)
+{
+    INVERSE_ORBIT_POINTS *orbits = (INVERSE_ORBIT_POINTS *)malloc(sizeof(INVERSE_ORBIT_POINTS));
+    if (!orbits) {
         // handle error if needed
         return NULL;
     }
 
-    F128* tmp = clone_f128s(points->elems, points->len);
+    // We'll produce 128 snapshots
+    const size_t N = 128;
+    orbits->len = N;
+    orbits->array_of_points = ( Points *)malloc(N * sizeof(Points));
+    if (!orbits->array_of_points) {
+        // handle error if needed
+        return NULL;
+    }
+
+
+    F128* tmp = clone_f128s(input_points->elems, input_points->len);
 
     // For i in [0..128):
     for (size_t i = 0; i < N; i++) {
         // Square each point in 'tmp'
-        for (size_t j = 0; j < points->len; j++) {
+        for (size_t j = 0; j < input_points->len; j++) {
             tmp[j] = f128_mul(tmp[j], tmp[j]);
         }
 
-        // Store a clone of 'tmp' in snapshots[i]
-        snapshots[i] = clone_f128s(tmp, points->len);
+        // orbits->array_of_points[i] = *clone_points(tmp);// mem leak here
+        orbits->array_of_points[i].elems = clone_f128s(tmp, input_points->len);
+        orbits->array_of_points[i].len = input_points->len;
     }
 
     // Reverse snapshots in place
     for (size_t i = 0; i < N/2; i++) {
-        F128* t = snapshots[i];
-        snapshots[i] = snapshots[N - 1 - i];
-        snapshots[N - 1 - i] = t;
+        Points t = orbits->array_of_points[i];
+        orbits->array_of_points[i] = orbits->array_of_points[N - 1 - i];
+        orbits->array_of_points[N - 1 - i] = t;
     }
 
     free(tmp); // free the temporary array
-    return snapshots;
+    return orbits;
 }
 
 // returns a list of polynomials, each of which is a sequence of coefficients
@@ -243,7 +268,6 @@ MLE_POLY_SEQUENCE* to_eq_poly_sequence(const Points *points)
 
 
 // implement a function to compute if 2 MLE_POLY are equal
-
 bool mle_poly_eq(const MLE_POLY *a, const MLE_POLY *b)
 {
     if (a->len != b->len) {
@@ -259,4 +283,63 @@ bool mle_poly_eq(const MLE_POLY *a, const MLE_POLY *b)
     return true;
 }
 
+void drop_top_bit(uint8_t x, uint8_t *result, uint8_t *bit_index) {
+    if (x == 0) {
+        *result = 0;
+        *bit_index = 0;
+        return;
+    }
 
+    // Compute leading zeros in 8-bit integer
+    uint8_t lz = __builtin_clz(x) - 24; // __builtin_clz operates on 32-bit ints
+    *bit_index = 7 - lz;
+    *result = x & ~(1 << *bit_index);
+}
+
+// The eq_sums function implementation
+Points* eq_sums(const  MLE_POLY *eq_poly) {
+    // Ensure eq_len is divisible by 16
+    if (eq_poly->len % 16 != 0) {
+        return NULL;  // or handle as error
+    }
+
+    size_t num_blocks = eq_poly->len / 8;
+    size_t total_results = 256 * num_blocks;
+
+    // Allocate the result array
+    F128* elems = (F128*)malloc(total_results * sizeof(F128));
+    if (!elems) {
+        return NULL;  // handle malloc failure
+    }
+    Points* result = (Points*)malloc(sizeof(Points));
+    if (!result) {
+        free(result);
+        return NULL;
+    }
+    result->len = total_results;
+    result->elems = elems;
+
+    // Process the polynomial in blocks of 8 coefficients each
+    for (size_t block_idx = 0; block_idx < num_blocks; ++block_idx) {
+        const F128* block = &eq_poly->coeffs[block_idx * 8];
+
+        // Pointer to current block results
+        F128* block_sums = &result->elems[block_idx * 256];
+
+        // Initialize the first sum (empty subset) to zero
+        block_sums[0] = f128_zero();
+
+        // Iterate over subsets from 1 to 255
+        for (uint16_t subset = 1; subset < 256; ++subset) {
+            uint8_t sum_idx, bit_idx;
+
+            // Decompose subset index
+            drop_top_bit((uint8_t)subset, &sum_idx, &bit_idx);
+
+            // Compute sum for the current subset
+            block_sums[subset] = f128_add(block[bit_idx], block_sums[sum_idx]);
+        }
+    }
+
+    return result;
+}
