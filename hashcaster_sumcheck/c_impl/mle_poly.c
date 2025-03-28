@@ -343,3 +343,163 @@ Points* eq_sums(const  MLE_POLY *eq_poly) {
 
     return result;
 }
+
+
+// This function takes a 16-byte array (x),
+// and returns an int representing the combined MSB mask.
+int cpu_v_movemask_epi8(const uint8_t* x) {
+    // 'ret' accumulates the final 16-bit pattern of MSBs,
+    // stored as a 32-bit integer.
+    int ret = 0;
+
+    // Loop from 0..16, shifting 'ret' left by 1 each iteration,
+    // then add the top bit of x[15-i].
+    for (int i = 0; i < 16; i++) {
+        // Shift left by 1 to make room for the next bit.
+        ret <<= 1;
+
+        // Extract the MSB of x[15 - i].
+        // (x[15 - i] >> 7) yields the top bit (0 or 1),
+        // then we add it to 'ret'.
+        ret += (x[15 - i] >> 7);
+    }
+
+    return ret;
+}
+
+
+void v_slli_epi64_c(int K, const uint8_t *x)
+{
+    // 1) Load the 16-byte array into a 128-bit NEON register of two 64-bit integers.
+    //    We treat x as an array of two int64_t.
+    int64x2_t data = vld1q_s64((const int64_t*) x);
+
+    // 2) Shift each 64-bit integer in data left by K bits.
+    //    vshlq_n_s64 can only accept a compile-time constant, 
+    //    so if K is truly constant at compile time, you do vshlq_n_s64(data, K).
+    //    Otherwise, use the more general vshlq_s64 with a vector shift count.
+    //    For demonstration, we assume K is a compile-time or small value.
+    //    We'll do a switch or so:
+    int64x2_t result;
+    switch(K) {
+        case 0:  result = data;               break;
+        case 1:  result = vshlq_n_s64(data,1);  break;
+        case 2:  result = vshlq_n_s64(data,2);  break;
+        // ...
+        // Up to 63. For brevity, not enumerating all cases. 
+        // In practice, you might generate code or 
+        // use vshlq_s64 for a runtime shift with a vector.
+        default: 
+            // Fallback approach for a runtime shift count:
+        {
+            // NEON requires a vector for vshlq_s64 if not constant. 
+            // We'll create that vector from K.
+            int64x2_t shift_vec = vdupq_n_s64(K);
+            // Use vshlq_s64 that shifts each 64-bit int by shift_vec's bits. 
+            result = vshlq_s64(data, shift_vec);
+            break;
+        }
+    }
+
+    // 3) Store the shifted 128-bit result back into out[16].
+    vst1q_s64((int64_t*) x, result);
+}
+
+Points* restrict_polynomials(
+    const MLE_POLY_SEQUENCE *polys, // array of polynomials
+    size_t N,                 // how many polynomials
+    const Points *challenges, // challenge points
+    size_t dims               // dimension
+) {
+    // Step 1: check all polynomials have len == 1 << dims
+    for(size_t i=0; i<N; i++){
+        // Check length 
+        assert(polys->mle_poly[i].len == (1ULL << dims));
+    }
+
+    // Step 2: number of challenges
+    size_t num_challenges = challenges->len;
+    assert(num_challenges <= dims);
+
+    size_t chunk_size = (1ULL << num_challenges);
+    size_t num_chunks = (1ULL << (dims - num_challenges));
+
+    MLE_POLY* eq = points_to_eq_poly(challenges); 
+
+    // Step 5: eq_len = eq.len and must be divisible by 16
+    size_t eq_len = eq->len; 
+    assert((eq_len % 16)==0);
+
+    // Step 6: eq_sums
+    Points * eq_sums_arr = eq_sums(eq);
+
+    // Step 7: create ret array with size = (num_chunks * 128 * N)
+    size_t ret_size = num_chunks * 128ULL * N; 
+    // We'll allocate 
+    F128 *ret = calloc(ret_size, sizeof(F128));
+
+    // Step 8: the main loop from Rust:
+    for(size_t q=0; q<N; q++){
+        // ret_chunk_start = q * 128 * num_chunks
+        size_t ret_chunk_start = q * 128ULL * num_chunks;
+        for(size_t i=0; i<num_chunks; i++){
+            // for j in [0.. eq_len/16)
+            size_t blocks = eq_len/16;
+            for(size_t j=0; j<blocks; j++){
+                // b1 = j * 512
+                size_t b1 = j*512;
+                size_t b2 = b1 + 256;
+                size_t b3 = b2 + 256;
+                const F128 *v0 = &eq_sums_arr->elems[b1];
+                const F128 *v1 = &eq_sums_arr->elems[b2];
+
+                // We interpret each F128 as 16 bytes. 
+                // Then we process each byte. 
+                const F128 * poly_block = &polys->mle_poly[q].coeffs[ i*chunk_size + j*16 ];
+                
+                // We'll do a for s in 0..16
+                for(size_t s=0; s<16; s++){
+                    // Build array t of 16 bytes
+                    uint8_t t[16];
+                    for(size_t idx=0; idx<16; idx++){
+                        t[idx] = ((uint8_t*)(&poly_block[idx]))[s];
+                    }
+
+                    // for u in 0..8
+                    for(size_t u=0; u<8; u++){
+                        size_t bits = cpu_v_movemask_epi8(t);
+                        
+                        // Now do ret[...] += v0[bits & 255] + v1[(bits>>8)&255]
+                        // ret index = ret_chunk_start + (s*8 + 7 - u)*num_chunks + i
+                        size_t ret_index = ret_chunk_start + (s*8 + (7ULL - u))*num_chunks + i;
+                        
+                        // We'll do a field add 
+                        F128 sum1 = f128_add(v0[bits & 0xFF], v1[(bits>>8)&0xFF]);
+                        // add it to ret[ret_index]
+                        ret[ret_index] = f128_add(ret[ret_index], sum1);
+
+                        // updates the t in place
+                        v_slli_epi64_c( 1, t);
+
+                        // shift array t left by 1 bit
+                        // We'll do a naive approach:
+                        // for(size_t shift_i=0; shift_i<16; shift_i++){
+                        //     // shift left 1
+                        //     uint8_t carry = 0;
+                        //     uint8_t newVal = t[shift_i]<<1;
+                        //     // we ignore the next carry for demonstration
+                        //     t[shift_i] = (uint8_t)newVal;
+                        // }
+                    }
+                }
+            }
+        }
+    }
+
+    // Return final evaluations
+    Points* res;
+    res = (Points*)malloc(sizeof(Points));
+    res->elems = ret;
+    res->len = ret_size;
+    return res;
+}
