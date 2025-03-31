@@ -26,6 +26,18 @@ typedef struct  {
     size_t len;
 } INVERSE_ORBIT_POINTS; // basically a vector of Points. 2D array of F128s
 
+
+
+
+/// UTILS
+void v_slli_epi64_c(int K, const uint8_t *x);
+void drop_top_bit(uint8_t x, uint8_t *result, uint8_t *bit_index);
+int cpu_v_movemask_epi8(const uint8_t* x);
+
+///
+
+
+
 Points* clone_points(const Points *src);
 MLE_POLY* points_to_eq_poly(const Points* points);
 F128 points_eq_eval(const Points* a, const Points* b);

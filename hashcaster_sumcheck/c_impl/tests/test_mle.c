@@ -368,3 +368,169 @@ void test_eq_sums(void) {
     free(points->elems);
     free(points);
 }
+
+
+void test_drop_top_bit_standard_cases(void) {
+    // Test with input 0b1010 (decimal 10).
+    // Expected: 0b1010 -> 0b0010, MSB position = 3.
+    uint8_t input = 0b1010; // 10 in decimal.
+    uint8_t result, bit_index;
+    drop_top_bit(input, &result, &bit_index);
+    TEST_ASSERT_EQUAL_UINT8(0b0010, result);
+    TEST_ASSERT_EQUAL_UINT8(3, bit_index);
+
+    // Test with input 0b0101 (decimal 5).
+    // Expected: 0b0101 -> 0b0001, MSB position = 2.
+    input = 0b0101;
+    drop_top_bit(input, &result, &bit_index);
+    TEST_ASSERT_EQUAL_UINT8(0b0001, result);
+    TEST_ASSERT_EQUAL_UINT8(2, bit_index);
+}
+
+void test_drop_top_bit_edge_cases(void) {
+    // Smallest non-zero: 1 (0b0001)
+    uint8_t input = 1;
+    uint8_t result, bit_index;
+    drop_top_bit(input, &result, &bit_index);
+    // 0b0001 -> 0, MSB position = 0.
+    TEST_ASSERT_EQUAL_UINT8(0, result);
+    TEST_ASSERT_EQUAL_UINT8(0, bit_index);
+}
+
+void test_drop_top_bit_large_numbers(void) {
+    uint8_t result, bit_index;
+    // Test with 2^31. But note: our drop_top_bit is designed for 8-bit values.
+    // In our use, x is always between 1 and 255. So we simulate by casting.
+    uint8_t input = (uint8_t)(1 << 7); // For an 8-bit value, the maximum bit is bit 7.
+    // For a test of "large" (e.g., 1 << 31) in the context of 8-bit, we must adjust:
+    // Instead, we'll test with inputs 1<<k for k=0..7.
+    // For k = 7 (i.e., 0b10000000) the expected result is 0, and bit index = 7.
+    input = 1 << 7;
+    drop_top_bit(input, &result, &bit_index);
+    TEST_ASSERT_EQUAL_UINT8(0, result);
+    TEST_ASSERT_EQUAL_UINT8(7, bit_index);
+
+    // For an 8-bit simulation of 2^63, also expect result 0 and bit index 7.
+    // (Since our function is only for 8-bit numbers.)
+}
+
+void test_drop_top_bit_all_bits_set(void) {
+    // For a 4-bit number: 0b1111 (15)
+    // Expected: 0b1111 -> 0b0111, MSB position = 3.
+    uint8_t input = 0b1111;
+    uint8_t result, bit_index;
+    drop_top_bit(input, &result, &bit_index);
+    TEST_ASSERT_EQUAL_UINT8(0b0111, result);
+    TEST_ASSERT_EQUAL_UINT8(3, bit_index);
+}
+
+// -----------------------------------------------------------------------------
+// Test cases for cpu_v_movemask_epi8
+// -----------------------------------------------------------------------------
+
+void test_cpu_v_movemask_epi8_standard_cases(void) {
+    // Input: 16 bytes alternating between 0b10000000 and 0b00000000.
+    uint8_t input[16] = {
+        0x80, 0x00, 0x80, 0x00,
+        0x80, 0x00, 0x80, 0x00,
+        0x80, 0x00, 0x80, 0x00,
+        0x80, 0x00, 0x80, 0x00,
+    };
+    // Expected: Bits: 0b0101010101010101 (21845)
+    uint16_t expected = 0b0101010101010101; // 21845
+    uint16_t result = cpu_v_movemask_epi8(input);
+    TEST_ASSERT_EQUAL_UINT16(expected, result);
+}
+
+void test_cpu_v_movemask_epi8_all_ones(void) {
+    // Input: 16 bytes, each 0b10000000.
+    uint8_t input[16];
+    for (int i = 0; i < 16; i++) {
+        input[i] = 0x80;
+    }
+    uint16_t expected = 0xFFFF; // 16 ones => 65535
+    uint16_t result = cpu_v_movemask_epi8(input);
+    TEST_ASSERT_EQUAL_UINT16(expected, result);
+}
+
+void test_cpu_v_movemask_epi8_all_zeros(void) {
+    // Input: 16 bytes all 0.
+    uint8_t input[16] = {0};
+    uint16_t expected = 0;
+    uint16_t result = cpu_v_movemask_epi8(input);
+    TEST_ASSERT_EQUAL_UINT16(expected, result);
+}
+
+// -----------------------------------------------------------------------------
+// Test cases for v_slli_epi64
+// -----------------------------------------------------------------------------
+
+// We'll define v_slli_epi64 as: void v_slli_epi64_c(const uint8_t in[16], uint8_t out[16], unsigned shift)
+
+void test_v_slli_epi64_basic_shift(void) {
+    // Input: two 64-bit values encoded as 16 bytes:
+    // first 8 bytes represent 1, next 8 represent 2.
+    uint8_t input[16] = {
+        0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, // 1 in little-endian
+        0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00  // 2 in little-endian
+    };
+    uint8_t expected[16] = {
+        0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00, // 1 << 1 = 2
+        0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00  // 2 << 1 = 4
+    };
+    // uint8_t result[16] = {0};
+    v_slli_epi64_c( 1, input);
+    TEST_ASSERT_EQUAL_MEMORY(expected, input, sizeof(expected));
+}
+
+void test_v_slli_epi64_zero_shift(void) {
+    // Input: some arbitrary 16-byte value.
+    uint8_t input[16] = {
+        0x10,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+    uint8_t expected[16];
+    memcpy(expected, input, sizeof(input));
+    // uint8_t result[16] = {0};
+    v_slli_epi64_c(0, input);
+    TEST_ASSERT_EQUAL_MEMORY(expected, input, sizeof(expected));
+}
+
+void test_v_slli_epi64_edge_cases(void) {
+    // Test edge cases:
+    // Input: first 8 bytes all 0xFF, second 8 bytes: all 0 except last byte = 0x80.
+    uint8_t input[16] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x80
+    };
+    // Expected: shift left by 1:
+    // For first 8 bytes: shifting 0xFF left by 1 gives 0xFE in each byte (with overflow discarded).
+    // For second 8 bytes: shifting 0x00...0x80 left by 1 gives all 0.
+    uint8_t expected[16] = {
+        0xFE,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+    // uint8_t result[16] = {0};
+    v_slli_epi64_c(1, input);
+    TEST_ASSERT_EQUAL_MEMORY(expected, input, sizeof(expected));
+}
+
+void test_v_slli_epi64_no_overflow(void) {
+    // Check no overflow: 
+    // Input: first 8 bytes represent 1, second 8 represent 64.
+    uint8_t input[16] = {
+        0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x40,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+    // Shift left by 3:
+    // 1 << 3 = 8 -> represented as 0x08,0x00,...
+    // 64 << 3 = 512, which in little-endian 64-bit: 512 = 0x200,
+    // so the 64-bit number becomes: 0x00, 0x02, then zeros.
+    uint8_t expected[16] = {
+        0x08,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00
+    };
+    // uint8_t result[16] = {0};
+    v_slli_epi64_c(3, input);
+    TEST_ASSERT_EQUAL_MEMORY(expected, input, sizeof(expected));
+}

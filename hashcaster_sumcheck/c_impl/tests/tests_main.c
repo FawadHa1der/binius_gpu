@@ -42,5 +42,21 @@ int main(void)
     RUN_TEST(test_to_points_inv_orbit_last_element);
     RUN_TEST(test_eq_sums);
 
+    RUN_TEST(test_drop_top_bit_standard_cases);
+    RUN_TEST(test_drop_top_bit_edge_cases);
+    RUN_TEST(test_drop_top_bit_large_numbers);
+    RUN_TEST(test_drop_top_bit_all_bits_set);
+
+    RUN_TEST(test_cpu_v_movemask_epi8_standard_cases);
+    RUN_TEST(test_cpu_v_movemask_epi8_all_ones);
+    RUN_TEST(test_cpu_v_movemask_epi8_all_zeros);
+
+    RUN_TEST(test_v_slli_epi64_basic_shift);
+    RUN_TEST(test_v_slli_epi64_zero_shift);
+    RUN_TEST(test_v_slli_epi64_edge_cases);
+    RUN_TEST(test_v_slli_epi64_no_overflow);
+
+
+
     return UNITY_END();
 }
