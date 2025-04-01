@@ -202,7 +202,7 @@ MLE_POLY_SEQUENCE* to_eq_poly_sequence(const Points *points)
         // handle allocation failure if needed
         return NULL;
     }
-    seq->mle_poly = polynomials;
+    seq = polynomials;
     seq->len = array_size;
 
     // 1) polynomials[0] = a polynomial with 1 coefficient = [f128_one()]
@@ -406,7 +406,7 @@ void v_slli_epi64_c(int K, const uint8_t *x)
 }
 
 Points* restrict_polynomials(
-    const MLE_POLY_SEQUENCE *polys, // array of polynomials
+    const MLE_POLY *polys, // array of polynomials
     size_t N,                 // how many polynomials
     const Points *challenges, // challenge points
     size_t dims               // dimension
@@ -414,7 +414,7 @@ Points* restrict_polynomials(
     // Step 1: check all polynomials have len == 1 << dims
     for(size_t i=0; i<N; i++){
         // Check length 
-        assert(polys->mle_poly[i].len == (1ULL << dims));
+        assert(polys[i].len <= (1ULL << dims));
     }
 
     // Step 2: number of challenges
@@ -450,19 +450,24 @@ Points* restrict_polynomials(
                 size_t b1 = j*512;
                 size_t b2 = b1 + 256;
                 size_t b3 = b2 + 256;
-                const F128 *v0 = &eq_sums_arr->elems[b1];
-                const F128 *v1 = &eq_sums_arr->elems[b2];
+                const F128 *v0 = &(eq_sums_arr->elems[b1]);
+                const F128 *v1 = &(eq_sums_arr->elems[b2]);
 
                 // We interpret each F128 as 16 bytes. 
-                // Then we process each byte. 
-                const F128 * poly_block = &polys->mle_poly[q].coeffs[ i*chunk_size + j*16 ];
+                // Then we process each byte.
+                // uint8_t* coeffs = (polys[q].coeffs );
                 
+
+                const F128 * poly_block_16 = &(polys[q].coeffs[ i*chunk_size + j*16 ]);
+
+
                 // We'll do a for s in 0..16
                 for(size_t s=0; s<16; s++){
                     // Build array t of 16 bytes
                     uint8_t t[16];
                     for(size_t idx=0; idx<16; idx++){
-                        t[idx] = ((uint8_t*)(&poly_block[idx]))[s];
+                        uint8_t* poly_poly_bytes = (uint8_t*)(&poly_block_16[idx]);
+                        t[idx] = poly_poly_bytes[s];
                     }
 
                     // for u in 0..8
@@ -473,9 +478,13 @@ Points* restrict_polynomials(
                         // ret index = ret_chunk_start + (s*8 + 7 - u)*num_chunks + i
                         size_t ret_index = ret_chunk_start + (s*8 + (7ULL - u))*num_chunks + i;
                         
+                        // print the ret_index
+                        //  printf("ret_index: %zu\n", ret_index);
+                        
                         // We'll do a field add 
                         F128 sum1 = f128_add(v0[bits & 0xFF], v1[(bits>>8)&0xFF]);
                         // add it to ret[ret_index]
+
                         ret[ret_index] = f128_add(ret[ret_index], sum1);
 
                         // updates the t in place
@@ -490,6 +499,7 @@ Points* restrict_polynomials(
                         //     // we ignore the next carry for demonstration
                         //     t[shift_i] = (uint8_t)newVal;
                         // }
+
                     }
                 }
             }

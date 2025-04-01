@@ -60,13 +60,15 @@ def process_line(line: str) -> str:
     return "".join(out_tokens)
 
 def main():
-    input_file = "cobasis_frobenius_table.txt"
-    output_file = "cobasis_frobenius_table_2_64_bits.txt"
+    # input_file = "cobasis_frobenius_table.txt"
+    # output_file = "cobasis_frobenius_table_2_64_bits.txt"
 
-    with open(input_file, "r") as fin, open(output_file, "w") as fout:
-        for line in fin:
-            line_out = process_line(line.rstrip("\n"))
-            fout.write(line_out + "\n")
-
+    # with open(input_file, "r") as fin, open(output_file, "w") as fout:
+    #     for line in fin:
+    #         line_out = process_line(line.rstrip("\n"))
+    #         fout.write(line_out + "\n")
+    low, high = split_128_to_64(225730887183604071602915146884576182279)
+    print(f"0x{low:016x}, 0x{high:016x}")
+    # Test the process_line function
 if __name__ == "__main__":
     main()

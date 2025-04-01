@@ -30,5 +30,6 @@ void test_v_slli_epi64_basic_shift(void);
 void test_v_slli_epi64_zero_shift(void);
 void test_v_slli_epi64_edge_cases(void);
 void test_v_slli_epi64_no_overflow(void);
+void test_restrict_polynomials(void);
 
 #endif

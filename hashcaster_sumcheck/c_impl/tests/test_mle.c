@@ -534,3 +534,129 @@ void test_v_slli_epi64_no_overflow(void) {
     v_slli_epi64_c(3, input);
     TEST_ASSERT_EQUAL_MEMORY(expected, input, sizeof(expected));
 }
+
+
+// -------------- Utility to compare Evaluations with an expected array --------
+
+// We'll define a helper to check that the returned Evaluations match
+// some expected F128 array:
+void assert_evaluations_equal(
+    const Points* actual,
+    const F128* expected_vals,
+    size_t expected_len
+) {
+    TEST_ASSERT_EQUAL_UINT64(expected_len, actual->len);
+    for(size_t i=0; i<expected_len; i++){
+        TEST_ASSERT_MESSAGE(
+            f128_eq(actual->elems[i], expected_vals[i]),
+            "Mismatch in Evaluations at index"
+        );
+    }
+}
+
+void test_restrict_polynomials(void)
+{
+    // (1) define the number of variables
+    size_t num_vars = 4;
+    // how many we restrict
+    size_t num_vars_to_restrict = 4;
+
+    // (2) define the restriction points
+    Points pts;
+    pts.len = num_vars_to_restrict;
+    // allocate or create them
+    pts.elems = malloc(sizeof(F128)*num_vars_to_restrict);
+    for(size_t i=0; i<num_vars_to_restrict; i++){
+        pts.elems[i] = f128_from_uint64(i); // mock example like Rust
+    }
+
+    // (3) define 3 polynomials (N=3)
+    // each polynomial has length = 1<<num_vars = 16
+    size_t poly_len = (1ULL << num_vars);
+
+    MLE_POLY poly0, poly1, poly2;
+    poly0.len = poly_len; 
+    poly1.len = poly_len; 
+    poly2.len = poly_len;
+    poly0.coeffs = malloc(sizeof(F128)*poly_len);
+    poly1.coeffs = malloc(sizeof(F128)*poly_len);
+    poly2.coeffs = malloc(sizeof(F128)*poly_len);
+
+    // fill poly0 with new(i)
+    for(size_t i=0; i<poly_len; i++){
+        poly0.coeffs[i] = f128_from_uint64(i);  // Rust used new(i)
+        poly1.coeffs[i] = f128_from_uint64(i+1);
+        poly2.coeffs[i] = f128_from_uint64(i+2);
+    }
+
+    // (4) call the restrict function
+    // we'll store the result in an Evaluations object
+    MLE_POLY polys_array[3];
+    polys_array[0] = poly0;
+    polys_array[1] = poly1;
+    polys_array[2] = poly2;
+
+    Points* restricted = restrict_polynomials(polys_array, 3, &pts, num_vars);
+
+    size_t expected_len = 384;
+    F128 expected[expected_len];
+    for(int i=0; i<expected_len; i++){
+        expected[i] = f128_zero();
+    }
+    // Then from the test, some were non-zero:
+    // e.g. expected[0] = ZERO, expected[1] = new(1), ...
+    expected[1] = f128_from_uint64(1);
+    expected[2] = f128_from_uint64(2);
+    expected[3] = f128_from_uint64(3);
+
+    // index 128
+    //BinaryField128b::new(257870231182273679343338569694386847745),
+    //0x0000000000000001, 
+    expected[128] = f128_from_raw(0x0000000000000001, 0xc200000000000000);
+    expected[129] = f128_from_uint64(1);
+    expected[130] = f128_from_uint64(2);
+    expected[131] = f128_from_uint64(3);
+
+    //0x0000000000000000, 0xc200000000000000
+    expected[257] = f128_from_raw(0x0000000000000000, 0xc200000000000000);
+    expected[258] = f128_from_uint64(3);
+    // 0x0000000000000000, 0xe608000000000000
+    expected[259] = f128_from_raw(0x0000000000000000, 0xe608000000000000);
+    //0x0000000000000007, 0xa9d2300000000000
+    expected[260] = f128_from_raw(0x0000000000000007, 0xa9d2300000000000);
+
+
+    // ... etc. In real code you'd fill them all.
+
+    // (6) compare using a helper
+    TEST_ASSERT_EQUAL_UINT64(384, restricted->len);
+    // or call a custom compare function
+    // We'll do a minimal check just for the first 4 to show the approach:
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[0], f128_zero()));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[1], f128_from_uint64(1)));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[2], f128_from_uint64(2)));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[3], f128_from_uint64(3)));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[128], expected[128]));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[129], expected[129]));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[130], expected[130]));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[131], expected[131]));
+
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[257], expected[257]));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[258], expected[258]));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[259], expected[259]));
+    TEST_ASSERT_TRUE(f128_eq(restricted->elems[260], expected[260]));
+
+
+    // ... etc.
+
+    // if you want to check all 128 exactly:
+    // assert_evaluations_equal(&restricted, expected, 128);
+
+    // (7) Clean up
+    free(poly0.coeffs);
+    free(poly1.coeffs);
+    free(poly2.coeffs);
+    free(pts.elems);
+    free(restricted->elems);
+}
+

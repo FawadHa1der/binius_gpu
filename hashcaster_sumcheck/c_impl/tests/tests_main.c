@@ -55,6 +55,7 @@ int main(void)
     RUN_TEST(test_v_slli_epi64_zero_shift);
     RUN_TEST(test_v_slli_epi64_edge_cases);
     RUN_TEST(test_v_slli_epi64_no_overflow);
+    RUN_TEST(test_restrict_polynomials);
 
 
 
