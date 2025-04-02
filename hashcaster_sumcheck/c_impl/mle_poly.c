@@ -202,7 +202,7 @@ MLE_POLY_SEQUENCE* to_eq_poly_sequence(const Points *points)
         // handle allocation failure if needed
         return NULL;
     }
-    seq = polynomials;
+    seq->mle_poly = polynomials;
     seq->len = array_size;
 
     // 1) polynomials[0] = a polynomial with 1 coefficient = [f128_one()]

@@ -649,8 +649,6 @@ void test_restrict_polynomials(void)
 
     // ... etc.
 
-    // if you want to check all 128 exactly:
-    // assert_evaluations_equal(&restricted, expected, 128);
 
     // (7) Clean up
     free(poly0.coeffs);
