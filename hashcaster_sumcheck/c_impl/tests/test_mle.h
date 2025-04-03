@@ -31,5 +31,10 @@ void test_v_slli_epi64_zero_shift(void);
 void test_v_slli_epi64_edge_cases(void);
 void test_v_slli_epi64_no_overflow(void);
 void test_restrict_polynomials(void);
-
+void test_eq_poly(void);
+void test_eq_poly_evaluate(void);
+void test_eq_poly_sequence(void);
+void test_eq_poly_sequence_random_values(void);
+void test_evaluate_at(void);
+void test_multilinear_lagrangian_bitand(void);
 #endif

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
+#include "debug_utils.h"
 /******************************************************************************
  * points_default
  *   Returns an empty Points with len=0, elems=NULL.
@@ -188,7 +189,7 @@ INVERSE_ORBIT_POINTS* to_f128_inv_orbit(const Points* input_points)
 }
 
 // returns a list of polynomials, each of which is a sequence of coefficients
-MLE_POLY_SEQUENCE* to_eq_poly_sequence(const Points *points)
+MLE_POLY_SEQUENCE* points_to_eq_poly_sequence(const Points *points)
 {
     // The result array will have (points_len + 1) polynomials
     size_t array_size = points->len + 1;
@@ -490,16 +491,6 @@ Points* restrict_polynomials(
                         // updates the t in place
                         v_slli_epi64_c( 1, t);
 
-                        // shift array t left by 1 bit
-                        // We'll do a naive approach:
-                        // for(size_t shift_i=0; shift_i<16; shift_i++){
-                        //     // shift left 1
-                        //     uint8_t carry = 0;
-                        //     uint8_t newVal = t[shift_i]<<1;
-                        //     // we ignore the next carry for demonstration
-                        //     t[shift_i] = (uint8_t)newVal;
-                        // }
-
                     }
                 }
             }
@@ -512,4 +503,37 @@ Points* restrict_polynomials(
     res->elems = ret;
     res->len = ret_size;
     return res;
+}
+
+
+// Evaluate polynomial at given 'points'
+F128 evaluate_at(
+    const MLE_POLY *poly, 
+    const Points *points
+)
+{
+    // 1) ensure we have the right length
+    size_t required_len = (1ULL << points->len);
+    // In real code, handle if poly->len != required_len
+    assert(poly->len == required_len);
+
+    // 2) compute eq polynomial
+    MLE_POLY* eq = points_to_eq_poly(points);
+    // eq.len should also be required_len
+    assert(eq->len == required_len);
+
+    // 3) sum up each product of poly->coeffs[i]* eq.coeffs[i]
+    F128 sum = f128_zero(); // start with zero
+    for(size_t i = 0; i < required_len; i++){
+        // multiply
+        F128 prod = f128_mul(poly->coeffs[i], eq->coeffs[i]);
+        // add to sum
+        sum = f128_add(sum, prod);
+    }
+
+    // 4) free eq polynomial if allocated
+    free(eq->coeffs);
+
+    // 5) return sum
+    return sum;
 }

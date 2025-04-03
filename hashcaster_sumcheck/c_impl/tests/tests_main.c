@@ -56,7 +56,12 @@ int main(void)
     RUN_TEST(test_v_slli_epi64_edge_cases);
     RUN_TEST(test_v_slli_epi64_no_overflow);
     RUN_TEST(test_restrict_polynomials);
-
+    RUN_TEST(test_eq_poly);
+    RUN_TEST(test_eq_poly_evaluate);
+    RUN_TEST(test_eq_poly_sequence);
+    RUN_TEST(test_eq_poly_sequence_random_values);
+    RUN_TEST(test_evaluate_at);
+    RUN_TEST(test_multilinear_lagrangian_bitand);
 
 
     return UNITY_END();
