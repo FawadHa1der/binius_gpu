@@ -28,6 +28,9 @@ typedef struct  {
 
 
 
+typedef Points Evaluations;
+
+
 
 /// UTILS
 void v_slli_epi64_c(int K, const uint8_t *x);
@@ -46,7 +49,7 @@ MLE_POLY_SEQUENCE* points_to_eq_poly_sequence(const Points *points);
 bool mle_poly_eq(const MLE_POLY *a, const MLE_POLY *b);
 INVERSE_ORBIT_POINTS* to_f128_inv_orbit(const Points* input_points);
 Points* eq_sums(const  MLE_POLY *eq_poly);
-Points* restrict_polynomials(
+Evaluations* restrict_polynomials(
     const MLE_POLY *polys, // array of polynomials
     size_t N,                 // how many polynomials
     const Points *challenges, // challenge points

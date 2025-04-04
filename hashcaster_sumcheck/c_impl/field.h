@@ -251,6 +251,18 @@ static inline F128 f128_cobasis(int i)
 
 extern const F128 COBASIS_FROBENIUS[128][128]; // Defined in cobasis_frobenius_table.h
 
+static inline uint8_t f128_get_bit(const F128 r, int i)
+{
+    if(i < 64) {
+        // bit i is in the 'low' part
+        return (uint8_t)((r.low >> i) & 1ULL);
+    } else {
+        // bit (i-64) is in the 'high' part
+        int shift = i - 64;
+        return (uint8_t)((r.high >> shift) & 1ULL);
+    }
+}
+
 static inline F128 pi_calc(int i, const F128 *twists /* array of size 128 */)
 {
     assert(i >= 0 && i < 128);

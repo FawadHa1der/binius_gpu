@@ -406,7 +406,7 @@ void v_slli_epi64_c(int K, const uint8_t *x)
     vst1q_s64((int64_t*) x, result);
 }
 
-Points* restrict_polynomials(
+Evaluations* restrict_polynomials(
     const MLE_POLY *polys, // array of polynomials
     size_t N,                 // how many polynomials
     const Points *challenges, // challenge points

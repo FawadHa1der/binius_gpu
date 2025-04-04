@@ -7,6 +7,7 @@
 #include "test_field.h"
 #include "test_matrix_utils.h"
 #include "test_mle.h"
+#include "test_evaluations.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -62,6 +63,8 @@ int main(void)
     RUN_TEST(test_eq_poly_sequence_random_values);
     RUN_TEST(test_evaluate_at);
     RUN_TEST(test_multilinear_lagrangian_bitand);
+    RUN_TEST(test_pi);
+    RUN_TEST(test_pi_all_zeroes);
 
 
     return UNITY_END();
