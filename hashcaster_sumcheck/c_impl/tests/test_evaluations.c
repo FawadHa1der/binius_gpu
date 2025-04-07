@@ -170,7 +170,6 @@ void test_twist_untwist(void)
     rhs->len= 128;
     rhs->elems= malloc(sizeof(F128)*128);
     memcpy(rhs->elems, lhs->elems, sizeof(F128)*128);
-    // Apply twist => we'll define FE_twist => then untwist => FE_untwist
 
     twist_evals(rhs);
     untwist_evals(rhs);

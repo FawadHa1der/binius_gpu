@@ -8,6 +8,7 @@
 #include "test_matrix_utils.h"
 #include "test_mle.h"
 #include "test_evaluations.h"
+#include "test_compressed_poly.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -71,6 +72,14 @@ int main(void)
     RUN_TEST(test_twist_untwist);
     RUN_TEST(test_twist_all_zeros);
     RUN_TEST(test_untwist_all_zeros);
+
+    RUN_TEST(test_compress);
+    RUN_TEST(test_sum_standard_case);
+    RUN_TEST(test_sum_all_zero_coefficients);
+    RUN_TEST(test_coeffs_reconstruction_standard_case);
+    RUN_TEST(test_coeffs_all_zero_coefficients);
+    RUN_TEST(test_coeffs_large_coefficients);
+
     
     return UNITY_END();
 }

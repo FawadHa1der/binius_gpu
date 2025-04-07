@@ -34,4 +34,10 @@ typedef union {
 } u128_as_vec;
 
 
+
+typedef struct {
+    F128* elems;
+    size_t len;
+} Points; 
+
 #endif

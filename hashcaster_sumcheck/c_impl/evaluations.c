@@ -26,15 +26,15 @@ void twist_evals(Evaluations *evals)
 
         F128 twisted[chunk_len];
 
-        for(int i=0; i<chunk_len; i++){
+        for(size_t i=0; i<chunk_len; i++){
             // (a) square all 128 elements of chunk
-            for(int k=0; k<chunk_len; k++){
+            for(size_t k=0; k<chunk_len; k++){
                 chunk[k] = f128_mul(chunk[k], chunk[k]);
             }
 
             // (b) do sum_{j=0..127} basis(j)* chunk[j]
             F128 sum = f128_zero();
-            for(int j=0; j<chunk_len; j++){
+            for(size_t j=0; j<chunk_len; j++){
                 F128 b = f128_basis(j);
                 F128 prod = f128_mul(b, chunk[j]);
                 sum = f128_add(sum, prod);
@@ -43,14 +43,14 @@ void twist_evals(Evaluations *evals)
         }
 
         // 3) reverse twisted
-        for(int i=0; i<64; i++){
+        for(size_t i=0; i<64; i++){
             F128 tmp = twisted[i];
             twisted[i] = twisted[127-i];
             twisted[127-i] = tmp;
         }
 
         // 4) copy twisted back to chunk
-        for(int i=0; i<chunk_len; i++){
+        for(size_t i=0; i<chunk_len; i++){
             chunk[i] = twisted[i];
         }
     }
@@ -76,19 +76,19 @@ void untwist_evals(Evaluations *evals)
 
         // Step 1: Frobenius transformation x -> x^(2^i)
         // chunk[i] = chunk[i].frobenius(i) for i in [0..127]
-        for(int i=0; i<chunk_len; i++){
+        for(size_t i=0; i<chunk_len; i++){
             chunk[i] = f128_frob(chunk[i], i);
         }
 
         F128 untwisted[chunk_len];
-        for(int i=0; i<chunk_len; i++){
+        for(size_t i=0; i<chunk_len; i++){
             // can do pre-computations of pi_calc(i, chunk) like in hashcaster explorations
             untwisted[i] = pi_calc(i, chunk);
         }
 
         // Step 3: Copy untwisted back
         // chunk.copy_from_slice(&untwisted_chunk);
-        for(int i=0; i<chunk_len; i++){
+        for(size_t i=0; i<chunk_len; i++){
             chunk[i] = untwisted[i];
         }
     }

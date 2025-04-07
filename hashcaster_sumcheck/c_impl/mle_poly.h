@@ -11,10 +11,6 @@ typedef struct  {
 
 // typedef Vector Points;
 
-typedef struct {
-    F128* elems;
-    size_t len;
-} Points; 
 
 typedef struct  {
     MLE_POLY *mle_poly; // array of MLE_POLY

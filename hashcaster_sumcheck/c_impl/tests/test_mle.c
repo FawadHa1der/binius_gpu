@@ -602,7 +602,7 @@ void test_restrict_polynomials(void)
 
     size_t expected_len = 384;
     F128 expected[expected_len];
-    for(int i=0; i<expected_len; i++){
+    for(size_t i=0; i<expected_len; i++){
         expected[i] = f128_zero();
     }
     // Then from the test, some were non-zero:
@@ -870,7 +870,7 @@ void test_eq_poly_sequence_random_values(void)
         for(size_t i=0;i<length;i++){
             // turn i into binary => if bit j => multiply by points->vals[j], else multiply by (1- points->vals[j])
             F128 term= result->coeffs[i];
-            for(size_t j=0;j<num_points;j++){
+            for(int j=0;j<num_points;j++){
                 int isSet= ( (i>>j) &1 );
                 if(isSet){
                     term=f128_mul(term, points.elems[j]);

@@ -450,7 +450,7 @@ Evaluations* restrict_polynomials(
                 // b1 = j * 512
                 size_t b1 = j*512;
                 size_t b2 = b1 + 256;
-                size_t b3 = b2 + 256;
+                // size_t b3 = b2 + 256;
                 const F128 *v0 = &(eq_sums_arr->elems[b1]);
                 const F128 *v1 = &(eq_sums_arr->elems[b2]);
 
