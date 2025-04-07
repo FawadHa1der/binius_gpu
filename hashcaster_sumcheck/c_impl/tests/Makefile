@@ -24,7 +24,7 @@ UNITY_DIR = ./
 UNITY_SRC = $(UNITY_DIR)/unity.c 
 
 # Your test file & implementation
-TEST_SRC = test_field.c ../field.c ../matrix_utils.c tests_main.c test_matrix_utils.c ../gf128_polyval.c test_mle.c ../mle_poly.c ../debug_utils.c test_evaluations.c 
+TEST_SRC = test_field.c ../field.c ../matrix_utils.c tests_main.c test_matrix_utils.c ../gf128_polyval.c test_mle.c ../mle_poly.c ../debug_utils.c ../evaluations.c test_evaluations.c 
 
 TEST_EXE = run_tests
 

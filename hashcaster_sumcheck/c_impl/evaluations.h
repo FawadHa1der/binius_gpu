@@ -5,5 +5,6 @@
 
 
 void twist_evals(Evaluations *evals);
+void untwist_evals(Evaluations *evals);
 
 #endif

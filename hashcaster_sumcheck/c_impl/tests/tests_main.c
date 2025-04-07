@@ -65,7 +65,12 @@ int main(void)
     RUN_TEST(test_multilinear_lagrangian_bitand);
     RUN_TEST(test_pi);
     RUN_TEST(test_pi_all_zeroes);
-
-
+    RUN_TEST(test_pi_single_non_zero);
+    RUN_TEST(test_pi_alternating);
+    RUN_TEST(test_pi_random_orbit);
+    RUN_TEST(test_twist_untwist);
+    RUN_TEST(test_twist_all_zeros);
+    RUN_TEST(test_untwist_all_zeros);
+    
     return UNITY_END();
 }

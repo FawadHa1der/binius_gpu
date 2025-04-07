@@ -17,6 +17,7 @@
 #include "cobasis_table.h"
 #include "frobenius_table.h"
 #include "cobasis_frobenius_table.h"
+#include "cobasis_frobenius_transpose_table.h"
 
 
 /**

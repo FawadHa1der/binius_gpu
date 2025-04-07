@@ -1,5 +1,6 @@
 #include "evaluations.h"
 
+// twists them in place
 void twist_evals(Evaluations *evals)
 {
     const size_t chunk_len = 128;
@@ -92,5 +93,7 @@ void untwist_evals(Evaluations *evals)
         }
     }
 }
+
+
 
 

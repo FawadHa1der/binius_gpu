@@ -78,4 +78,151 @@ void test_pi_all_zeroes(void)
     free(orbit);
 }
 
+void test_pi_single_non_zero(void)
+{
+    // build an orbit of all zeros
+    Evaluations* orbit;
+    orbit= malloc(sizeof(Evaluations));
+    orbit->len= 128;
+    orbit->elems= malloc(sizeof(F128)*128);
+    for(int i=0;i<128;i++){
+        orbit->elems[i]= f128_zero();
+    }
+    // set orbit[5]= ONE
+    orbit->elems[5]= f128_one();
+
+    // compare with COBASIS_FROBENIUS_TRANSPOSE[i][5]
+    for(int i=0;i<128;i++){
+        F128 expected = COBASIS_FROBENIUS_TRANSPOSE[i][5];
+        F128 got= pi_calc(i, orbit->elems);
+        TEST_ASSERT_TRUE_MESSAGE(f128_eq(got,expected), "test_pi_single_non_zero mismatch");
+    }
+}
+
+void test_pi_alternating(void)
+{
+    // orbit => data[i]= ONE if i%2==0 else ZERO
+    Evaluations* orbit;
+    orbit= malloc(sizeof(Evaluations));
+    orbit->len= 128;
+    orbit->elems= malloc(sizeof(F128)*128);
+
+    for(int i=0;i<128;i++){
+        if(i%2==0) orbit->elems[i]= f128_one();
+        else       orbit->elems[i]= f128_zero();
+    }
+
+    for(int i=0;i<128;i++){
+        // build "expected" as sum of basis's for j even
+        // from snippet => we do the same logic:
+        // expected= sum_{ j even} COBASIS_FROBENIUS_TRANSPOSE[i][j]
+        F128 sum= f128_zero();
+        for(int j=0;j<128;j++){
+            if(j%2==0){
+                F128 cval= COBASIS_FROBENIUS_TRANSPOSE[i][j];
+                sum= f128_add(sum,cval);
+            }
+        }
+        F128 got= pi_calc(i, orbit->elems);
+        TEST_ASSERT_TRUE_MESSAGE(f128_eq(got,sum), "Mismatch in test_pi_alternating");
+    }
+}
+
+
+void test_pi_random_orbit(void)
+{
+    // from snippet => we do a random orbit
+    Evaluations* orbit;
+    orbit= malloc(sizeof(Evaluations));
+    orbit->len= 128;
+    orbit->elems= malloc(sizeof(F128)*128);
+
+    for(int i=0;i<128;i++){
+        orbit->elems[i]= f128_rand();
+    }
+
+    // for i => expected= sum_{j=0..127} COBASIS_FROBENIUS_TRANSPOSE[i][j]* orbit[j]
+    for(int i=0;i<128;i++){
+        F128 sum= f128_zero();
+        for(int j=0;j<128;j++){
+            F128 cval= COBASIS_FROBENIUS_TRANSPOSE[i][j];
+            // sum += cval* orbit[j]
+            F128 tmp= f128_mul(cval, orbit->elems[j]);
+            sum= f128_add(sum,tmp);
+        }
+        F128 got= pi_calc(i, orbit->elems);
+        TEST_ASSERT_TRUE_MESSAGE(f128_eq(got,sum), "Mismatch in test_pi_random_orbit");
+    }
+}
+
+void test_twist_untwist(void)
+{
+    // We'll define random "lhs"
+    Evaluations* lhs;
+    lhs= malloc(sizeof(Evaluations));
+    lhs->len= 128;
+    lhs->elems= malloc(sizeof(F128)*128);
+    for(int i=0;i<128;i++){
+        lhs->elems[i]= f128_rand();
+    }
+    // clone => "rhs"
+    Evaluations* rhs= malloc(sizeof(Evaluations));
+    rhs->len= 128;
+    rhs->elems= malloc(sizeof(F128)*128);
+    memcpy(rhs->elems, lhs->elems, sizeof(F128)*128);
+    // Apply twist => we'll define FE_twist => then untwist => FE_untwist
+
+    twist_evals(rhs);
+    untwist_evals(rhs);
+    // check equality
+    for(int i=0;i<128;i++){
+        TEST_ASSERT_TRUE_MESSAGE(f128_eq(lhs->elems[i], rhs->elems[i]), "twist->untwist did not restore original");
+    }
+    // do untwist->twist
+    untwist_evals(rhs);
+    twist_evals(rhs);
+    for(int i=0;i<128;i++){
+        TEST_ASSERT_TRUE_MESSAGE(f128_eq(lhs->elems[i], rhs->elems[i]), "untwist->twist did not restore original");
+    }
+    free(lhs->elems);
+    free(lhs);
+    free(rhs->elems);
+    free(rhs);
+}
+
+void test_twist_all_zeros(void)
+{
+    Evaluations* evals;
+    evals= malloc(sizeof(Evaluations));
+    evals->len= 128;
+    evals->elems= malloc(sizeof(F128)*128);
+    // set all to zero
+    for(int i=0;i<128;i++){
+        evals->elems[i]= f128_zero();
+    }
+    twist_evals(evals);
+
+    // check all still zero
+    for(int i=0;i<128;i++){
+        TEST_ASSERT_TRUE_MESSAGE(f128_is_zero(evals->elems[i]), "twist all zero input failed");
+    }
+}
+
+void test_untwist_all_zeros(void)
+{
+    Evaluations* evals;
+    evals= malloc(sizeof(Evaluations));
+    evals->len= 128;
+    evals->elems= malloc(sizeof(F128)*128);
+    // set all to zero
+    for(int i=0;i<128;i++){
+        evals->elems[i]= f128_zero();
+    }
+    untwist_evals(evals);
+
+    for(int i=0;i<128;i++){
+        TEST_ASSERT_TRUE_MESSAGE(f128_is_zero(evals->elems[i]), "untwist all zero input failed");
+    }
+}
+
 
