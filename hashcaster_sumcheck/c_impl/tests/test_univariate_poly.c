@@ -21,7 +21,7 @@ void test_univariate_polynomial_evaluate_at(void)
     // expected= 3 +2*2 +1*(2^2)
     // for demonstration:
     // let two= f128_from_uint64(2)
-    F128 term1= f128_mul(f128_from_uint64(2), f128_from_uint64(2)); // 2*2=4
+    F128 term1= f128_mul(f128_from_uint64(1), f128_mul(f128_from_uint64(2), f128_from_uint64(2))); // 2*2=4
     F128 partA= f128_add(f128_from_uint64(3), f128_mul(f128_from_uint64(2), f128_from_uint64(2))); 
     // i.e. 3 + 2*2= 3 +4=7
     F128 expected= f128_add(partA, term1); // 7 +4= 11 in a real sense

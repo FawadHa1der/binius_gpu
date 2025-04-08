@@ -9,6 +9,7 @@
 #include "test_mle.h"
 #include "test_evaluations.h"
 #include "test_compressed_poly.h"
+#include "test_univariate_poly.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -79,6 +80,10 @@ int main(void)
     RUN_TEST(test_coeffs_reconstruction_standard_case);
     RUN_TEST(test_coeffs_all_zero_coefficients);
     RUN_TEST(test_coeffs_large_coefficients);
+
+    RUN_TEST(test_univariate_polynomial_evaluate_at);
+    RUN_TEST(test_from_evaluations_deg2);
+    RUN_TEST(test_multiply_degree2_by_degree1);
 
     
     return UNITY_END();
