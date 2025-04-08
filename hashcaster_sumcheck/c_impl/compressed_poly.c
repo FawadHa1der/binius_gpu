@@ -49,8 +49,8 @@ CompressedPoly* compress_poly(const Points* poly)
     return compressed;
 }
 
-// returns a "FixedUnivariatePolynomial".
-FixedUnivariatePolynomial* uncompress_poly(
+// returns a "UnivariatePolynomial".
+UnivariatePolynomial* uncompress_poly(
     const CompressedPoly* compressed_poly )
 {
     // step 1) c0= compressed_poly->compressed_coeff->elems[0]
@@ -69,8 +69,8 @@ FixedUnivariatePolynomial* uncompress_poly(
     F128 c1 = f128_add(partial_sum, ev_1);
 
     // step 4) build full => size N+1
-    FixedUnivariatePolynomial* full;
-    full = (FixedUnivariatePolynomial*)malloc(sizeof(FixedUnivariatePolynomial));
+    UnivariatePolynomial* full;
+    full = (UnivariatePolynomial*)malloc(sizeof(UnivariatePolynomial));
     if (!full) {
         // handle error
         return NULL;

@@ -14,9 +14,8 @@ typedef struct{
 
 } CompressedPoly;
 
-typedef Points FixedUnivariatePolynomial;
 
-FixedUnivariatePolynomial* uncompress_poly(
+UnivariatePolynomial* uncompress_poly(
     const CompressedPoly* compressed_poly );
 CompressedPoly* compress_poly(const Points* poly);
 

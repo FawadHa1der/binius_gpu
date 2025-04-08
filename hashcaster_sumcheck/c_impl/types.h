@@ -40,4 +40,7 @@ typedef struct {
     size_t len;
 } Points; 
 
+
+typedef Points UnivariatePolynomial;
+
 #endif
