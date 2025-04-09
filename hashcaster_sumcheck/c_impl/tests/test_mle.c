@@ -863,7 +863,7 @@ void test_eq_poly_sequence_random_values(void)
         size_t length= (1ULL<< num_points);
 
         // Step 3: Reconstruct eq poly manually => we expect sum=1
-        // We'll do a "expected_eq_poly" as F128_ZERO
+        // We'll do a "expected_eq_poly" as 
         F128 expected_eq_poly= f128_zero();
 
         // For i in 0..(1<<num_points):

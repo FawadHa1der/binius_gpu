@@ -10,6 +10,7 @@
 #include "test_evaluations.h"
 #include "test_compressed_poly.h"
 #include "test_univariate_poly.h"
+#include "test_efficient_matrix.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -81,9 +82,29 @@ int main(void)
     RUN_TEST(test_coeffs_all_zero_coefficients);
     RUN_TEST(test_coeffs_large_coefficients);
 
+    // univariate polynomial tests
     RUN_TEST(test_univariate_polynomial_evaluate_at);
     RUN_TEST(test_from_evaluations_deg2);
     RUN_TEST(test_multiply_degree2_by_degree1);
+
+    // effiecient_matrix tests    
+    RUN_TEST(test_from_cols_with_queries);
+    RUN_TEST(test_from_cols_single_non_zero_column);
+    RUN_TEST(test_from_cols_all_zeros);
+    RUN_TEST(test_from_rows_alternate_rows_full_128_bits);
+    RUN_TEST(test_from_rows_all_rows_max);
+    RUN_TEST(test_from_rows_single_element_in_first_row);
+    RUN_TEST(test_from_rows_all_ones);
+    RUN_TEST(test_from_rows_all_zeros);
+    RUN_TEST(test_apply_against_traditional_matrix);
+    RUN_TEST(test_frobenius_inv_lc_all_zeros);
+    RUN_TEST(test_frobenius_inv_lc_single_gamma);
+    RUN_TEST(test_frobenius_inv_lc_multiple_nonzero_gammas);
+    RUN_TEST(test_frobenius_inv_lc_wraparound_indices);
+    RUN_TEST(test_apply_all_zeros);
+    RUN_TEST(test_apply_single_nonzero_byte);
+
+
 
     
     return UNITY_END();

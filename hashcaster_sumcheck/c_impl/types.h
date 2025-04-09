@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <arm_neon.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 
 // For a GF(2^128) element, we store two 64-bit words:
 //   hi = the high 64 bits

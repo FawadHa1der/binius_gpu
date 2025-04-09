@@ -64,10 +64,10 @@ void test_sum_standard_case(void)
     // same poly => [1,2,3,4]
     // F128 poly[N];
 
-    // poly[0]= F128_from_u64(1);
-    // poly[1]= F128_from_u64(2);
-    // poly[2]= F128_from_u64(3);
-    // poly[3]= F128_from_u64(4);
+    // poly[0]= f128_from_uint64(1);
+    // poly[1]= f128_from_uint64(2);
+    // poly[2]= f128_from_uint64(3);
+    // poly[3]= f128_from_uint64(4);
     const int  N = 4;
 
     Points* poly;
