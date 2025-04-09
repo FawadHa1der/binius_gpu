@@ -11,6 +11,7 @@
 #include "test_compressed_poly.h"
 #include "test_univariate_poly.h"
 #include "test_efficient_matrix.h"
+#include "test_matrix_linear.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -103,6 +104,15 @@ int main(void)
     RUN_TEST(test_frobenius_inv_lc_wraparound_indices);
     RUN_TEST(test_apply_all_zeros);
     RUN_TEST(test_apply_single_nonzero_byte);
+
+    //matrix_linear tests
+    RUN_TEST(test_apply_identity_matrix);
+    RUN_TEST(test_apply_transposed_identity_matrix);
+    RUN_TEST(test_apply_arbitrary_matrix);
+    RUN_TEST(test_apply_transposed_arbitrary_matrix);
+    // RUN_TEST(test_apply_invalid_input_size);
+    // RUN_TEST(test_apply_invalid_output_size);
+
 
 
 

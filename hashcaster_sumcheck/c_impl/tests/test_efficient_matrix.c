@@ -2,6 +2,7 @@
 #include "unity.h"
 #include "../matrix_utils.h"
 #include "time.h"
+#include "test_helpers.h"
 // Compare entire EfficientMatrix for equality
 static int EfficientMatrix_equal(const EfficientMatrix* a, const EfficientMatrix* b){
     for(int i=0; i<EFFICIENT_MATRIX_SIZE; i++){
@@ -16,9 +17,6 @@ static int EfficientMatrix_equal(const EfficientMatrix* a, const EfficientMatrix
 #define TEST_ASSERT_EM_EQUAL_MESSAGE(a,b,msg) \
     TEST_ASSERT_TRUE_MESSAGE(EfficientMatrix_equal((a),(b)),(msg))
 
-void TEST_ASSERT_F128_EQUAL_MESSAGE(F128 a, F128 b, const char*msg){
-    TEST_ASSERT_TRUE_MESSAGE(f128_eq(a,b), msg);
-}
     
 EfficientMatrix efficient_matrix_zero(void)
 {
