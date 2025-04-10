@@ -219,3 +219,24 @@ F128 f128_rand(void)
     return out;
 }
 
+
+Points* compute_gammas_folding(F128 gamma, size_t M)
+{
+    Points* points = (Points*)malloc(sizeof(Points));
+    points->len = M;
+    // Allocate an array of M F128 elements on the heap
+    F128 *gammas = (F128*)malloc(M * sizeof(F128));
+    // Start with "current" = 1 in GF(2^128)
+    F128 current = f128_one();
+
+    for(size_t i = 0; i < M; i++){
+        // Set the current power in the array
+        gammas[i] = current;
+        // Compute the next power => current = current * gamma
+        current = f128_mul(current, gamma);
+    }
+    // Assign the allocated array to the points structure
+    points->elems = gammas;
+    return points;
+}
+

@@ -5,7 +5,7 @@
 #include "unity.h"
 
 #include "../field.h"
-
+#include "test_helpers.h"
 void test_f128_is_field(void)
 {
     F128 a = f128_rand(); 
@@ -180,4 +180,111 @@ void test_twists_logic_and(void)
     // expected = a & b
     F128 expected = f128_bitand(a, b);
     TEST_ASSERT_TRUE(f128_eq(answer, expected));
+}
+
+
+void test_compute_gammas_folding_identity(void)
+{
+    // "Gamma=1"
+    F128 gamma = f128_one();
+    // We'll assume M=5 from your Rust snippet
+    size_t M=5;
+
+    // Call compute
+    Points* result = compute_gammas_folding(gamma, M);
+
+    // "Expected => [1,1,1,1,1]"
+    F128 expected[5];
+    for(int i=0; i<5; i++){
+        expected[i] = f128_one();
+    }
+
+    // Compare
+    TEST_ASSERT_F128_ARRAY_EQUAL(result->elems, expected, 5, "Gamma folding with identity failed");
+
+    // free
+    free(result);
+}
+
+// 2) test_compute_gammas_folding_simple_case
+void test_compute_gammas_folding_simple_case(void)
+{
+    // "Gamma=2"
+    F128 gamma = f128_from_uint64(2ULL);
+    // We'll assume M=4 from your snippet
+    size_t M=4;
+
+    Points* result= compute_gammas_folding(gamma, M);
+
+    // "Expected => [1, gamma, gamma^2, gamma^3]"
+    // We'll do normal array building. We need to do repeated multiplication in the field 
+    // or rely on a function. We'll do a small approach:
+
+    F128 one = f128_one();
+    // gamma^1= gamma
+    // gamma^2= gamma* gamma
+    // gamma^3= gamma^2* gamma
+    extern F128 f128_mul(F128 a, F128 b);
+    F128 gamma2= f128_mul(gamma, gamma);
+    F128 gamma3= f128_mul(gamma2, gamma);
+
+    F128 expected[4];
+    expected[0]= one;
+    expected[1]= gamma;
+    expected[2]= gamma2;
+    expected[3]= gamma3;
+
+    TEST_ASSERT_F128_ARRAY_EQUAL(result->elems, expected, 4, "Gamma folding with simple case failed");
+
+    free (result->elems);
+    free(result);
+}
+
+// 3) test_compute_gammas_folding_large_gamma
+void test_compute_gammas_folding_large_gamma(void)
+{
+    // "Gamma= 123456789"
+    F128 gamma= f128_from_uint64(123456789ULL);
+    // We do M=3 from snippet => [1, gamma, gamma^2]
+    size_t M=3;
+
+    Points* result= compute_gammas_folding(gamma, M);
+
+    // We'll compute gamma^2
+    extern F128 f128_mul(F128 a,F128 b);
+    F128 one= f128_one();
+    F128 gamma2= f128_mul(gamma, gamma);
+
+    F128 expected[3];
+    expected[0]= one;
+    expected[1]= gamma;
+    expected[2]= gamma2;
+
+    TEST_ASSERT_F128_ARRAY_EQUAL(result->elems, expected, 3, "Gamma folding with large gamma failed");
+
+    free(result->elems);
+    free(result);
+}
+
+// 4) test_compute_gammas_folding_zero_gamma
+void test_compute_gammas_folding_zero_gamma(void)
+{
+    // gamma=0
+    F128 gamma= f128_zero();
+    // We'll do M=3 => [1,0,0]
+    size_t M=3;
+
+    Points* result= compute_gammas_folding(gamma, M);
+
+    F128 one= f128_one();
+    F128 zero= f128_zero();
+    F128 expected[3];
+    expected[0]= one;
+    expected[1]= zero;
+    expected[2]= zero;
+
+    TEST_ASSERT_F128_ARRAY_EQUAL(result->elems, expected, 3, "Gamma folding with zero gamma failed");
+
+    free(result->elems);
+    free(result);
 }

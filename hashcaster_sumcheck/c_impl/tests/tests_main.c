@@ -34,6 +34,10 @@ int main(void)
     RUN_TEST(test_frobenius);
     RUN_TEST(test_pi_as_expected);
     RUN_TEST(test_twists_logic_and);
+    RUN_TEST(test_compute_gammas_folding_large_gamma);
+    RUN_TEST(test_compute_gammas_folding_identity);
+    RUN_TEST(test_compute_gammas_folding_zero_gamma);
+    RUN_TEST(test_compute_gammas_folding_simple_case);
 
     RUN_TEST(test_apply_matrix);
     RUN_TEST(test_invert_matrix);

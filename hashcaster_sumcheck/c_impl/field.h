@@ -277,4 +277,6 @@ static inline F128 pi_calc(int i, const F128 *twists /* array of size 128 */)
     return ret;
 }
 
+Points* compute_gammas_folding(F128 gamma, size_t M);
+
 #endif // F128_H
