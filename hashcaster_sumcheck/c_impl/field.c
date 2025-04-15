@@ -240,3 +240,5 @@ Points* compute_gammas_folding(F128 gamma, size_t M)
     return points;
 }
 
+
+

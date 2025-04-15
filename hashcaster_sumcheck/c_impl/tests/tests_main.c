@@ -12,6 +12,7 @@
 #include "test_univariate_poly.h"
 #include "test_efficient_matrix.h"
 #include "test_matrix_linear.h"
+#include "test_prod_check.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -116,6 +117,21 @@ int main(void)
     RUN_TEST(test_apply_transposed_arbitrary_matrix);
     // RUN_TEST(test_apply_invalid_input_size);
     // RUN_TEST(test_apply_invalid_output_size);
+
+
+    // prod_check tests
+    // RUN_TEST(test_prodcheck_new_invalid_claim); <-- SHOULD FAIL with an abort, not sure how to handle with unity since the farmework does not catch it
+    RUN_TEST(test_prodcheck_new_without_checking_claim);
+    RUN_TEST(test_prodcheck_new_valid_claim);
+    // RUN_TEST(test_prodcheck_new_invalid_polynomial_size_p);<-- SHOULD FAIL with an abort, not sure how to handle with unity since the farmework does not catch it
+    // RUN_TEST(test_prodcheck_new_invalid_polynomial_size_q); //<-- SHOULD FAIL with an abort, not sure how to handle with unity since the farmework does not catch it
+    RUN_TEST(test_prodcheck_compute_round_polynomial_valid);
+    //RUN_TEST(test_prodcheck_compute_round_polynomial_invalid_claim); // SHOULD FAIL
+    // RUN_TEST(test_prodcheck_compute_round_polynomial_protocol_complete); // SHOULD FAIL
+    RUN_TEST(test_prodcheck_bind_valid_challenge);
+
+
+
 
 
 

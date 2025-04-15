@@ -2,6 +2,10 @@
 #define MLE_POLY_H
 #include "field.h"
 #include "types.h"
+#include "stdint.h"
+#include <stdbool.h>
+#include <stdlib.h>
+#include <memory.h>  
 
 // multi linear lagrange poly
 typedef struct  {
@@ -9,13 +13,10 @@ typedef struct  {
     size_t len;
 } MLE_POLY ;
 
-// typedef Vector Points;
-
-
 typedef struct  {
     MLE_POLY *mle_poly; // array of MLE_POLY
     size_t len;
-} MLE_POLY_SEQUENCE ;
+} MLE_POLY_SEQUENCE ; // TODO replace all arrays of MLE_POLY with MLE_POLY_SEQUENCE
 
 typedef struct  {
     Points *array_of_points ; 
@@ -23,9 +24,56 @@ typedef struct  {
 } INVERSE_ORBIT_POINTS; // basically a vector of Points. 2D array of F128s
 
 
+// A helper to get the i-th coefficient
+static inline F128 mlp_get(const MLE_POLY* poly, size_t i){
+    return poly->coeffs[i];
+}
+
+static inline void mlp_set(MLE_POLY* poly, size_t i, F128 val){
+    poly->coeffs[i] = val;
+}
+
+
+// A constructor from an existing array
+static inline MLE_POLY mlp_with_array(const F128* arr, size_t length)
+{
+    MLE_POLY poly;
+    // poly = (MLE_POLY*)malloc(sizeof(MLE_POLY));
+    // if (poly == NULL) {
+    //     // handle allocation failure
+    //     poly->len = 0;
+    //     poly->coeffs = NULL;
+    //     return poly;
+    // }
+    poly.len = length;
+    if (length == 0) {
+        poly.coeffs = NULL;
+        return poly;
+    }
+    poly.coeffs = (F128*)malloc(sizeof(F128) * length);
+    if (poly.coeffs == NULL) {
+        // handle allocation failure
+        poly.len = 0;
+        return poly;
+    }
+    memcpy(poly.coeffs, arr, sizeof(F128)* length);
+    return poly;
+}
+
+// A destructor
+static inline void mlp_free(MLE_POLY* poly)
+{
+    if (poly == NULL) {
+        return;
+    }
+    if (poly->coeffs != NULL) {
+        free(poly->coeffs);
+    }
+    free(poly);
+}
+
 
 typedef Points Evaluations;
-
 
 
 /// UTILS

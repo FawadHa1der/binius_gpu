@@ -46,4 +46,39 @@ typedef struct {
 
 typedef Points UnivariatePolynomial;
 
+
+static inline void points_free(Points* points){
+    if(points->elems != NULL){
+        free(points->elems);
+        points->elems = NULL;
+    }
+    points->len = 0;
+    free(points);
+    points = NULL;
+}
+
+static inline Points* points_init(size_t len){
+    Points* pts = (Points*)malloc(sizeof(Points));
+    if (pts == NULL) {
+        // handle allocation failure
+        pts->len = 0;
+        pts->elems = NULL;
+        return pts;
+    }
+    pts->len = len;
+    if (len == 0) {
+        pts->elems = NULL;
+        return pts;
+    }
+    pts->elems = (F128*)malloc(sizeof(F128) * len);
+    if (pts->elems == NULL) {
+        // handle allocation failure
+        pts->len = 0;
+        return pts;
+    }
+    return pts;
+}
+
+
+
 #endif
