@@ -103,4 +103,22 @@ F128 evaluate_at(
     const MLE_POLY *poly, 
     const Points *points
 );
+
+static inline MLE_POLY* mle_poly_random(size_t poly_len)
+{
+    MLE_POLY* poly;
+    poly = (MLE_POLY*)malloc(sizeof(MLE_POLY));
+    if (poly == NULL) {
+        // handle allocation failure
+        poly->len = 0;
+        poly->coeffs = NULL;
+        return poly;
+    }
+    poly->coeffs = (F128*)malloc(sizeof(F128)*poly_len);
+    poly->len = poly_len;
+    for(size_t i=0; i<poly_len; i++){
+        poly->coeffs[i] = f128_rand();
+    }
+    return poly;
+}
 #endif // MLE_POLY_H

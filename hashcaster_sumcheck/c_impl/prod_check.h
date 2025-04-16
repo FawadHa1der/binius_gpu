@@ -28,7 +28,7 @@ ProdCheck prodcheck_new(MLE_POLY* p_arr,
                         F128 claim,
                         int check_init_claim);
 CompressedPoly* prodcheck_round_polynomial(ProdCheck* pc);
-void prodcheck_bind(ProdCheck* pc, F128 r, int challenege_index);
+void prodcheck_bind(ProdCheck* pc, F128 r, int challenge_index);
 ProdCheckOutput prodcheck_finish(ProdCheck pc);                        
 
 void prodcheck_free(ProdCheck pc);

@@ -1,6 +1,8 @@
 #include "test_prod_check.h"
 #include "unity.h"
 #include "../debug_utils.h"
+#include "../univariate_poly.h"
+
 void test_prodcheck_new_valid_claim(void)
 {
     size_t N=3;
@@ -102,7 +104,7 @@ void test_prodcheck_new_invalid_claim(void)
         // We want it to panic => so we do TEST_PROTECT
         if(TEST_PROTECT()){
             // if it doesn't fail => test fails
-            ProdCheck pc= prodcheck_new(p_arr,q_arr,N, incorrect_claim, 1);
+            prodcheck_new(p_arr,q_arr,N, incorrect_claim, 1);
             // if we get here => no failure
             TEST_FAIL_MESSAGE("Expected failure but function returned normally");
         }
@@ -168,7 +170,7 @@ void test_prodcheck_new_invalid_polynomial_size_p(void)
 
     // We want it to panic => so we do a TEST_PROTECT block
     if(TEST_PROTECT()){
-        ProdCheck pc = prodcheck_new(p_arr, q_arr, N, zero_claim, 1);
+        prodcheck_new(p_arr, q_arr, N, zero_claim, 1);
         // if we get here => no fail => test fails
         TEST_FAIL_MESSAGE("Expected panic (invalid polynomial size), but function returned normally");
     }
@@ -198,7 +200,7 @@ void test_prodcheck_new_invalid_polynomial_size_q(void)
     F128 zero_claim= f128_from_uint64(0ULL);
 
     if(TEST_PROTECT()){
-        ProdCheck pc = prodcheck_new(p_arr,q_arr,N, zero_claim,1);
+        prodcheck_new(p_arr,q_arr,N, zero_claim,1);
         TEST_FAIL_MESSAGE("Expected panic (invalid polynomial size in Q), but function returned normally");
     }
 }
@@ -299,7 +301,7 @@ void test_prodcheck_compute_round_polynomial_invalid_claim(void)
         // calling "round_polynomial" presumably => we expect a mismatch => panic
         // if it doesn't fail => test fails
         // We'll do a minimal call:
-        CompressedPoly* pol= prodcheck_round_polynomial(&pc);
+        prodcheck_round_polynomial(&pc);
         TEST_FAIL_MESSAGE("Expected panic due to mismatched claim, got normal return");
     }
 }
@@ -325,7 +327,7 @@ void test_prodcheck_compute_round_polynomial_protocol_complete(void)
     F128 c= f128_add(f128_mul(singleP[0], singleQ[0]), f128_mul(singleP[0], singleQ[0]));
 
     if(TEST_PROTECT()){
-        ProdCheck pc= prodcheck_new(p_arr, q_arr, N, c,1);
+        prodcheck_new(p_arr, q_arr, N, c,1);
         // we expect calling round_polynomial => "already complete" => panic
         // prodcheck_round_polynomial(&pc);
         TEST_FAIL_MESSAGE("Expected panic because protocol is already complete, but it returned normally");
@@ -470,89 +472,216 @@ void test_prodcheck_bind_valid_challenge(void)
     }
 
     // If you also store challenges, check that pc->challenges has "challenge"
-    // If code clears the round msg => can't check it here unless we have an accessor
-    // test success => no exit
+    TEST_ASSERT_TRUE_MESSAGE( f128_eq( pc.challenges->elems[0] , challenge), "challenge mismatch");
+    // TEST_ASSERT_TRUE_MESSAGE(pc.challenges->len==1, "challenge length mismatch"); // the len here is not accurate since we allocate memory ahead of the rounds even though all the challenges are not yet executed or filled
+
+    // chcek the cached rounds => should be NULL
+    TEST_ASSERT_TRUE_MESSAGE(pc.has_cached==0, "cached rounds mismatch");
+    TEST_ASSERT_TRUE_MESSAGE(pc.cached_round_msg==NULL, "cached rounds msg mismatch");
 }
 
-// void test_prodcheck_finish_valid_state(void)
-// {
-//     // polynomials size=1 => means done => finish => produce final eval
+void test_prodcheck_finish_valid_state(void)
+{
+    // polynomials size=1 => means done => finish => produce final eval
 
-//     size_t N=2;
-//     F128 single_p[1]={ f128_from_uint64(1ULL)};
-//     F128 single_q[1]={ f128_from_uint64(2ULL)};
-//     static MLE_POLY p_arr[2], q_arr[2];
-//     for(size_t i=0;i<2;i++){
-//         p_arr[i]= mlp_with_array(single_p,1);
-//         q_arr[i]= mlp_with_array(single_q,1);
-//     }
+    size_t N=2;
+    F128 single_p[1]={ f128_from_uint64(1ULL)};
+    F128 single_q[1]={ f128_from_uint64(2ULL)};
+    static MLE_POLY p_arr[2], q_arr[2];
+    for(size_t i=0;i<2;i++){
+        p_arr[i]= mlp_with_array(single_p,1);
+        q_arr[i]= mlp_with_array(single_q,1);
+    }
 
-//     F128 c= f128_from_uint64(4ULL);
 
-//     if(TEST_PROTECT()){
-//         ProdCheck pc= prodcheck_new(p_arr,q_arr,N,c,1);
-//         // now call "prodcheck_finish" => in real code => 
-//         // ProdCheckOutput out= prodcheck_finish(&pc);
-//         // check out
-//     } else {
-//         TEST_FAIL_MESSAGE("finish valid state => not expected to fail");
-//     }
-// }
+    // (p1 * q1) + (p1 * q1);
+    F128 c=  f128_add(f128_mul(single_p[0], single_q[0]), f128_mul(single_p[0], single_q[0]));
 
-// void test_prodcheck_finish_incomplete_state(void)
-// {
-//     // polynomials size>1 => incomplete => calling finish => panic
+    if(TEST_PROTECT()){
+        ProdCheck pc= prodcheck_new(p_arr,q_arr,N,c,1);
+        prodcheck_finish(pc);
 
-//     size_t N=2;
-//     F128 arr_p[2]={ f128_from_uint64(1ULL), f128_from_uint64(2ULL)};
-//     F128 arr_q[2]={ f128_from_uint64(3ULL), f128_from_uint64(4ULL)};
+        TEST_ASSERT_TRUE_MESSAGE(f128_eq(pc.p_polys[0].coeffs[0], single_p[0]), "p poly coeff mismatch");
+        TEST_ASSERT_TRUE_MESSAGE(f128_eq(pc.q_polys[0].coeffs[0], single_q[0]), "q poly coeff mismatch");
+    } else {
+        TEST_FAIL_MESSAGE("finish valid state => not expected to fail");
+    }
+}
 
-//     static MLE_POLY p_arr[2], q_arr[2];
-//     for(size_t i=0;i<2;i++){
-//         p_arr[i]= mlp_with_array(arr_p,2);
-//         q_arr[i]= mlp_with_array(arr_q,2);
-//     }
-//     // claim => do something
-//     F128 c= f128_from_uint64(99ULL);
+void test_prodcheck_finish_incomplete_state(void)
+{
+    // polynomials size>1 => incomplete => calling finish => panic
 
-//     if(TEST_PROTECT()){
-//         ProdCheck pc= prodcheck_new(p_arr,q_arr,N,c,1);
-//         // call finish => expect panic 
-//         // ProdCheckOutput out= prodcheck_finish(&pc);
-//         TEST_FAIL_MESSAGE("Expected panic because incomplete state, but returned normally");
-//     }
-// }
+    size_t N=2;
+    F128 arr_p[2]={ f128_from_uint64(1ULL), f128_from_uint64(2ULL)};
+    F128 arr_q[2]={ f128_from_uint64(3ULL), f128_from_uint64(4ULL)};
 
-// void test_prodcheck_finish_multiple_variables(void)
-// {
-//     // N=3 => polynomials each of size=1 => final
-//     // p_vals= [1,2,3], q_vals= [4,5,6]
-//     // claim => sum( p[i]* q[i])
-//     size_t N=3;
-//     F128 p_vals[3]={
-//         f128_from_uint64(1ULL), f128_from_uint64(2ULL), f128_from_uint64(3ULL)
-//     };
-//     F128 q_vals[3]={
-//         f128_from_uint64(4ULL), f128_from_uint64(5ULL), f128_from_uint64(6ULL)
-//     };
-//     static MLE_POLY p_arr[3], q_arr[3];
-//     for(size_t i=0;i<3;i++){
-//         p_arr[i]= mlp_with_array(&p_vals[i],1);
-//         q_arr[i]= mlp_with_array(&q_vals[i],1);
-//     }
+    static MLE_POLY p_arr[2], q_arr[2];
+    for(size_t i=0;i<2;i++){
+        p_arr[i]= mlp_with_array(arr_p,2);
+        q_arr[i]= mlp_with_array(arr_q,2);
+    }
+    // claim   (p1 * q1 + p2 * q2) + (p1 * q1 + p2 * q2);
+    F128 c=  f128_add(f128_mul(arr_p[0], arr_q[0]), f128_mul(arr_p[1], arr_q[1]));
+    c= f128_add(c, f128_mul(arr_p[0], arr_q[0]));
+    c= f128_add(c, f128_mul(arr_p[1], arr_q[1]));
 
-//     // claim => sum( p[i]* q[i]) => do a loop
-//     F128 sum= f128_from_uint64(0ULL);
-//     for(size_t i=0;i<3;i++){
-//         sum= f128_add(sum, f128_mul(p_vals[i], q_vals[i]));
-//     }
+    if(TEST_PROTECT()){
+        ProdCheck pc= prodcheck_new(p_arr,q_arr,N,c,1);
+        // call finish => expect panic 
+        prodcheck_finish(pc);
+        TEST_FAIL_MESSAGE("Expected panic because incomplete state, but returned normally");
+    }
+}
 
-//     if(TEST_PROTECT()){
-//         ProdCheck pc= prodcheck_new(p_arr,q_arr,N,sum,1);
-//         // call finish => presumably final => no fail
-//         // if no fail => success
-//     } else {
-//         TEST_FAIL_MESSAGE("finish multiple variables => not expected to fail");
-//     }
-// }
+void test_prodcheck_finish_multiple_variables(void)
+{
+    size_t N=3;
 
+    // p_vals= [1,2,3], q_vals=[4,5,6], each stored in polynomials of size=1 => "already complete"
+    F128 p_vals[3]= {
+        f128_from_uint64(1ULL),
+        f128_from_uint64(2ULL),
+        f128_from_uint64(3ULL)
+    };
+    F128 q_vals[3]= {
+        f128_from_uint64(4ULL),
+        f128_from_uint64(5ULL),
+        f128_from_uint64(6ULL)
+    };
+
+    // Build p_polys, q_polys each of length= N=3, but each polynomial has length=1
+    static MLE_POLY p_arr[3];
+    static MLE_POLY q_arr[3];
+
+    for(size_t i=0;i<N;i++){
+        p_arr[i] = mlp_with_array(&p_vals[i], 1); 
+        q_arr[i] = mlp_with_array(&q_vals[i], 1);
+    }
+
+    // claim => sum( p_vals[i]* q_vals[i] ), i in [0..2]
+    // We'll do that:
+    F128 sum_claim= f128_from_uint64(0ULL);
+    for(size_t i=0; i<N; i++){
+        F128 product= f128_mul(p_vals[i], q_vals[i]);
+        sum_claim= f128_add(sum_claim, product);
+    }
+
+    // Create ProdCheck => check_init_claim=1 => no fail
+    ProdCheck pc = prodcheck_new(p_arr, q_arr, N, sum_claim, 1);
+
+    // call finish => output
+    ProdCheckOutput out= prodcheck_finish(pc);
+
+    // We expect out.p_evals= p_vals, out.q_evals= q_vals
+    // We'll do minimal checks
+    for(size_t i=0;i<N;i++){
+        // check p
+        if(!f128_eq(out.p_evaluations->elems[i], p_vals[i])){
+            TEST_FAIL_MESSAGE("p_evals mismatch in test_prodcheck_finish_multiple_variables");
+        }
+        // check q
+        if(!f128_eq(out.q_evaluations->elems[i], q_vals[i])){
+            TEST_FAIL_MESSAGE("q_evals mismatch in test_prodcheck_finish_multiple_variables");
+        }
+    }
+    // pass
+}
+
+
+void test_prodcheck_full(void)
+{
+    // 1) N=3, NUM_VARS=15 => each polynomial has length= 1 <<15= 32768
+    const size_t N=3;
+    const size_t NUM_VARS=15;
+    const size_t poly_len= (size_t)1 << NUM_VARS; // 2^15
+
+    // 2) Generate random polynomials for p_polys, q_polys
+    static MLE_POLY p_arr[3];
+    static MLE_POLY q_arr[3];
+    for(size_t i=0; i<N; i++){
+        p_arr[i]= *(mle_poly_random(poly_len)); // memory leak here
+        q_arr[i]= *(mle_poly_random(poly_len));
+    }
+
+    // 3) Compute the initial claim => sum of product of p[i][j]* q[i][j] for i in [0..N), j in [0..poly_len)
+    F128 current_claim = f128_zero();
+    for(size_t i=0; i<N; i++){
+        for(size_t j=0; j<poly_len; j++){
+            F128 product= f128_mul(p_arr[i].coeffs[j], q_arr[i].coeffs[j]);
+            current_claim= f128_add(current_claim, product);
+        }
+    }
+
+    // 4) Create the ProdCheck => check_init_claim=1 => no fail
+    ProdCheck pc = prodcheck_new(p_arr, q_arr, N, current_claim, 1);
+
+    // 5) simulate the sumcheck for NUM_VARS rounds
+    for(size_t round=0; round<NUM_VARS; round++){
+        // round_polynomial => compressed
+        void* compressed_round_poly= prodcheck_round_polynomial(&pc);
+
+        // generate a random challenge => in rust => r= BinaryField128b::random(rng)
+        F128 challenge= f128_rand(); // or f128_from_uint64(round+1)...
+
+        // Decompress => c_0,c_1,c_2
+        UnivariatePolynomial* uncompressed_round_poly = uncompress_poly(compressed_round_poly);
+
+        // new claim => c0 + r*c1 + r^2*c2
+        // let r_sq= r*r
+        F128 r_sq= f128_mul(challenge, challenge);
+        F128 tmpA= uncompressed_round_poly->elems[0];
+        F128 tmpB= f128_mul(uncompressed_round_poly->elems[1], challenge);
+        F128 tmpC= f128_mul(uncompressed_round_poly->elems[2], r_sq);
+
+        // new claim
+        F128 new_claim= f128_add(tmpA, tmpB);
+        new_claim= f128_add(new_claim, tmpC);
+
+        current_claim= new_claim;
+
+        // bind => update polynomials
+        prodcheck_bind(&pc, challenge, round);
+    }
+
+    // 6) now polynomials must be length=1
+    for(size_t i=0;i<N;i++){
+        if(pc.p_polys[i].len!=1){
+            TEST_FAIL_MESSAGE("Some p_polys not fully reduced to len=1");
+        }
+        if(pc.q_polys[i].len!=1){
+            TEST_FAIL_MESSAGE("Some q_polys not fully reduced to len=1");
+        }
+    }
+
+    // 7) get final evaluations => finish
+    ProdCheckOutput out= prodcheck_finish(pc);
+
+    
+    F128 final_claim= f128_zero();
+    for(size_t i=0; i<N; i++){
+        F128 manual_eval_p = evaluate_at( &p_arr[i], pc.challenges);
+        F128 manual_eval_q = evaluate_at( &q_arr[i], pc.challenges);
+        TEST_ASSERT_TRUE_MESSAGE(f128_eq(manual_eval_p, out.p_evaluations->elems[i]), "p_evals mismatch");
+        TEST_ASSERT_TRUE_MESSAGE(f128_eq(manual_eval_q, out.q_evaluations->elems[i]), "q_evals mismatch");
+
+
+        // if out.p_evals, out.q_evals were arrays => final_claim += out.p_evals[i]* out.q_evals[i]
+        F128 product= f128_mul(manual_eval_p, manual_eval_q);
+        final_claim= f128_add(final_claim, product);
+    }
+
+    // check final_claim == current_claim
+    if(!f128_eq(final_claim, current_claim)){
+        TEST_FAIL_MESSAGE("final_claim mismatch from current_claim in test_prodcheck_full");
+    }
+
+    // success => free
+    // free p_evals, q_evals
+    // free(p_evals);
+    // free(q_evals);
+
+    // we might do "prodcheck_free(&pc);" if the code is set up that way
+    // done
+    TEST_MESSAGE("test_prodcheck_full => completed without error");
+}

@@ -18,4 +18,9 @@ void test_prodcheck_compute_round_polynomial_valid(void);
 void test_prodcheck_compute_round_polynomial_invalid_claim(void);
 void test_prodcheck_compute_round_polynomial_protocol_complete(void);
 void test_prodcheck_bind_valid_challenge(void);
+void test_prodcheck_finish_valid_state(void);
+void test_prodcheck_finish_incomplete_state(void);
+void test_prodcheck_finish_multiple_variables(void);
+void test_prodcheck_full(void);
+
 #endif

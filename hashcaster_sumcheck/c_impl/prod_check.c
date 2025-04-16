@@ -1,7 +1,8 @@
 #include "prod_check.h"
 #include <math.h>   
 #include "../debug_utils.h"
-
+#include "univariate_poly.h"
+#include "compressed_poly.h"
 // A "default" constructor => sets N=0, arrays= null, claim= zero, ...
 ProdCheck prodcheck_default(void)
 {
@@ -178,7 +179,7 @@ CompressedPoly* prodcheck_round_polynomial(ProdCheck* pc)
     return cr;
 }
 
-void prodcheck_bind(ProdCheck* pc, F128 r, int challenege_index)
+void prodcheck_bind(ProdCheck* pc, F128 r, int challenge_index)
 {
     size_t p0_len= pc->p_polys[0].len;
     assert(p0_len>1 && "The protocol is already complete");
@@ -187,22 +188,13 @@ void prodcheck_bind(ProdCheck* pc, F128 r, int challenege_index)
 
     // first retrieve the "round_poly" => do the same logic as above
     CompressedPoly* cp = prodcheck_round_polynomial(pc);
+    UnivariatePolynomial* poly = uncompress_poly(cp);
+    F128 new_claim = polynomial_evaluate_at(poly, r);
 
-    F128 a= cp->compressed_coeff->elems[0];
-    F128 b= cp->compressed_coeff->elems[1];
-    // c is the old "computed_claim"? which must have matched pc->claim at the time. Let's call c= old_claim:
-    F128 c= pc->claim; 
-
-    // new claim => a + b*r + c*r^2
-    F128 br= f128_mul(b, r);
-    F128 rr= f128_mul(r, r);
-    F128 cr= f128_mul(c, rr);
-    F128 tmp= f128_add(a, br);
-    F128 new_claim= f128_add(tmp, cr);
     pc->claim= new_claim;
 
     // push r into pc->challenges
-    pc->challenges->elems[challenege_index]= r;
+    pc->challenges->elems[challenge_index]= r;
 
     // We now build new polynomials p_new, q_new each of length= half
     MLE_POLY* p_new = (MLE_POLY*)malloc(sizeof(MLE_POLY)* pc->N);
@@ -253,6 +245,7 @@ void prodcheck_bind(ProdCheck* pc, F128 r, int challenege_index)
     pc->q_polys= q_new;
 
     pc->has_cached=0; // clear the cached msg
+    pc->cached_round_msg= NULL; // TODO should we free this?
 }
 
 // "finish(self) -> Output"

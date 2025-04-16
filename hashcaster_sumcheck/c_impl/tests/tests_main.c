@@ -129,6 +129,10 @@ int main(void)
     //RUN_TEST(test_prodcheck_compute_round_polynomial_invalid_claim); // SHOULD FAIL
     // RUN_TEST(test_prodcheck_compute_round_polynomial_protocol_complete); // SHOULD FAIL
     RUN_TEST(test_prodcheck_bind_valid_challenge);
+    RUN_TEST(test_prodcheck_finish_valid_state);
+    // RUN_TEST(test_prodcheck_finish_incomplete_state);// SHOULD FAIL
+    RUN_TEST(test_prodcheck_finish_multiple_variables);
+    RUN_TEST(test_prodcheck_full);
 
 
 
