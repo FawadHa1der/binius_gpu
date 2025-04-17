@@ -34,17 +34,11 @@ static inline void mlp_set(MLE_POLY* poly, size_t i, F128 val){
 }
 
 
+
 // A constructor from an existing array
 static inline MLE_POLY mlp_with_array(const F128* arr, size_t length)
 {
     MLE_POLY poly;
-    // poly = (MLE_POLY*)malloc(sizeof(MLE_POLY));
-    // if (poly == NULL) {
-    //     // handle allocation failure
-    //     poly->len = 0;
-    //     poly->coeffs = NULL;
-    //     return poly;
-    // }
     poly.len = length;
     if (length == 0) {
         poly.coeffs = NULL;
@@ -72,6 +66,32 @@ static inline void mlp_free(MLE_POLY* poly)
     free(poly);
 }
 
+static inline MLE_POLY* mle_poly_new_zeros(size_t len){
+    MLE_POLY* poly;
+    poly = (MLE_POLY*)malloc(sizeof(MLE_POLY));
+    if (poly == NULL) {
+        // handle allocation failure
+        poly->len = 0;
+        poly->coeffs = NULL;
+        return poly;
+    }
+    poly->len = len;
+    if (len == 0) {
+        poly->coeffs = NULL;
+        return poly;
+    }
+    poly->coeffs = (F128*)malloc(sizeof(F128) * len);
+    if (poly->coeffs == NULL) {
+        // handle allocation failure
+        poly->len = 0;
+        return poly;
+    }
+    for (size_t i = 0; i < len; i++) {
+        poly->coeffs[i] = f128_zero();
+    }
+    return poly;
+}
+
 
 typedef Points Evaluations;
 
@@ -84,9 +104,12 @@ int cpu_v_movemask_epi8(const uint8_t* x);
 ///
 
 
-
+MLE_POLY_SEQUENCE* mle_sequence_new(size_t sequence_len, size_t poly_len);
+void mle_sequence_free(MLE_POLY_SEQUENCE* seq);
 Points* clone_points(const Points *src);
+
 MLE_POLY* points_to_eq_poly(const Points* points);
+
 F128 points_eq_eval(const Points* a, const Points* b);
 Points points_default(void);
 MLE_POLY_SEQUENCE* points_to_eq_poly_sequence(const Points *points);

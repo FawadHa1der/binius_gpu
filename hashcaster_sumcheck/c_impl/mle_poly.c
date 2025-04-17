@@ -537,3 +537,47 @@ F128 evaluate_at(
     // 5) return sum
     return sum;
 }
+
+
+MLE_POLY_SEQUENCE* mle_sequence_new(size_t sequence_len, size_t poly_len)
+{
+    MLE_POLY_SEQUENCE* seq = (MLE_POLY_SEQUENCE*)malloc(sizeof(MLE_POLY_SEQUENCE));
+    if (!seq) {
+        // handle error
+        return NULL;
+    }
+
+    seq->len = sequence_len;
+    seq->mle_poly = (MLE_POLY*)malloc(sequence_len * sizeof(MLE_POLY));
+    if (!seq->mle_poly) {
+        free(seq);
+        return NULL;
+    }
+
+    for (size_t i = 0; i < sequence_len; i++) {
+        seq->mle_poly[i].len = poly_len;
+        seq->mle_poly[i].coeffs = (F128*)calloc(poly_len , sizeof(F128));
+        if (!seq->mle_poly[i].coeffs) {
+            // handle error
+            for (size_t j = 0; j < i; j++) {
+                free(seq->mle_poly[j].coeffs);
+            }
+            free(seq->mle_poly);
+            free(seq);
+            return NULL;
+        }
+    }
+
+    return seq;
+}
+
+void mle_sequence_free(MLE_POLY_SEQUENCE* seq){
+    if (seq == NULL) {
+        return;
+    }
+    for (size_t i = 0; i < seq->len; i++) {
+        free(seq->mle_poly[i].coeffs);
+    }
+    free(seq->mle_poly);
+    free(seq);
+}

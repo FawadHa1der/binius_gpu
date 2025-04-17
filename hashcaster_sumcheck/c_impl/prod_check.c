@@ -4,16 +4,18 @@
 #include "univariate_poly.h"
 #include "compressed_poly.h"
 // A "default" constructor => sets N=0, arrays= null, claim= zero, ...
-ProdCheck prodcheck_default(void)
+ProdCheck* prodcheck_default(void)
 {
-    ProdCheck pc;
-    pc.N=0;
-    pc.p_polys=NULL;
-    pc.q_polys=NULL;
-    pc.claim= f128_zero();
-    // points_init(&pc.challenges);
-    pc.num_vars=0;
-    pc.has_cached=0; 
+    // default constructor
+
+    ProdCheck *pc = (ProdCheck*)malloc(sizeof(ProdCheck));
+    pc->N=0;
+    pc->p_polys=NULL;
+    pc->q_polys=NULL;
+    pc->claim= f128_zero();
+    // points_init(&pc->challenges);
+    pc->num_vars=0;
+    pc->has_cached=0; 
     return pc;
 }
 
@@ -28,7 +30,7 @@ static inline size_t int_log2(size_t x){
 }
 
 
-ProdCheck prodcheck_new(MLE_POLY* p_arr, 
+ProdCheck* prodcheck_new(MLE_POLY* p_arr, 
     MLE_POLY* q_arr,
                         size_t N,
                         F128 claim,
@@ -69,37 +71,40 @@ ProdCheck prodcheck_new(MLE_POLY* p_arr,
         }
     }
 
-    ProdCheck pc= prodcheck_default();
-    pc.N= N;
-    pc.challenges= points_init(num_vars); 
+    ProdCheck* pc= prodcheck_default();
+    pc->N= N;
+    pc->challenges= points_init(num_vars); 
     // allocate new arrays, copy references
-    pc.p_polys= (MLE_POLY*)malloc(sizeof(MLE_POLY)*N);
-    pc.q_polys= (MLE_POLY*)malloc(sizeof(MLE_POLY)*N);
+    pc->p_polys= (MLE_POLY*)malloc(sizeof(MLE_POLY)*N);
+    pc->q_polys= (MLE_POLY*)malloc(sizeof(MLE_POLY)*N);
     for(size_t i=0;i<N;i++){
-        pc.p_polys[i]= p_arr[i]; // we assume caller won't free them? or we do a deep copy?
-        pc.q_polys[i]= q_arr[i];
+        pc->p_polys[i]= p_arr[i]; // we assume caller won't free them? or we do a deep copy?
+        pc->q_polys[i]= q_arr[i];
     }
-    pc.claim= claim;
-    pc.num_vars= num_vars;
-    pc.has_cached=0;
+    pc->claim= claim;
+    pc->num_vars= num_vars;
+    pc->has_cached=0;
     return pc;
 }
 
-void prodcheck_free(ProdCheck pc){
-    if(pc.p_polys){
+void prodcheck_free(ProdCheck* pc){
+    if(pc->p_polys){
         // optionally mlp_free each 
-        for(size_t i=0;i<pc.N;i++){ // free them if we made a deep copy
-            // mlp_free(&pc.p_polys[i].coeffs);
-            // mlp_free(&pc.q_polys[i]);
+        for(size_t i=0;i<pc->N;i++){ // free them if we made a deep copy
+            // mlp_free(&pc->p_polys[i].coeffs);
+            // mlp_free(&pc->q_polys[i]);
         }
-        free(pc.p_polys);
-        free(pc.q_polys);
+        free(pc->p_polys);
+        free(pc->q_polys);
     }
-    points_free(pc.challenges);
-    pc.p_polys=NULL;
-    pc.q_polys=NULL;
-    pc.N=0;
-    pc.has_cached=0;
+    points_free(pc->challenges);
+    pc->p_polys=NULL;
+    pc->q_polys=NULL;
+    pc->N=0;
+    pc->has_cached=0;
+    // free(pc->cached_round_msg);
+    // pc->cached_round_msg=NULL;
+    free (pc);
 }
 
 
@@ -249,30 +254,30 @@ void prodcheck_bind(ProdCheck* pc, F128 r, int challenge_index)
 }
 
 // "finish(self) -> Output"
-ProdCheckOutput prodcheck_finish(ProdCheck pc)
+ProdCheckOutput prodcheck_finish(ProdCheck* pc)
 {
-    // build p_evaluations => array of length pc.N
-    F128* pvals = (F128*)malloc(sizeof(F128)* pc.N);
-    F128* qvals = (F128*)malloc(sizeof(F128)* pc.N);
+    // build p_evaluations => array of length pc->N
+    F128* pvals = (F128*)malloc(sizeof(F128)* pc->N);
+    F128* qvals = (F128*)malloc(sizeof(F128)* pc->N);
 
-    for(size_t i=0; i< pc.N; i++){
+    for(size_t i=0; i< pc->N; i++){
         // ensure length==1
-        if(pc.p_polys[i].len !=1){
+        if(pc->p_polys[i].len !=1){
             fprintf(stderr,"The protocol is not complete\n");
             exit(1);
         }
-        if(pc.q_polys[i].len !=1){
+        if(pc->q_polys[i].len !=1){
             fprintf(stderr,"The protocol is not complete\n");
             exit(1);
         }
-        pvals[i]= pc.p_polys[i].coeffs[0];
-        qvals[i]= pc.q_polys[i].coeffs[0];
+        pvals[i]= pc->p_polys[i].coeffs[0];
+        qvals[i]= pc->q_polys[i].coeffs[0];
     }
 
     Evaluations* fe_p= malloc(sizeof(Evaluations));
     Evaluations* fe_q= malloc(sizeof(Evaluations));
-    fe_p->len= pc.N;
-    fe_q->len= pc.N;
+    fe_p->len= pc->N;
+    fe_q->len= pc->N;
     fe_p->elems= pvals;
     fe_q->elems= qvals;
 
