@@ -3,8 +3,9 @@
 #include "field.h"
 #include "types.h"
 
+typedef Points UnivariatePolynomial;
 
-F128 polynomial_evaluate_at(const UnivariatePolynomial *poly, const F128 at);
+F128 univariate_polynomial_evaluate_at(const UnivariatePolynomial *poly, const F128 at);
 UnivariatePolynomial* from_evaluations_deg2(const Points* evaluations);
 UnivariatePolynomial* multiply_degree2_by_degree1(
     const UnivariatePolynomial *lhs,

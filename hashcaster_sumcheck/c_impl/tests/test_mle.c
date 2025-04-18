@@ -899,7 +899,7 @@ void test_eq_poly_sequence_random_values(void)
 void test_evaluate_at(void)
 {
     // mimic your snippet: define a 2D polynomial with 4 coefficients, random them,
-    // define points, do evaluate_at, do the manual formula, compare
+    // define points, do mle_poly_evaluate_at, do the manual formula, compare
     // We'll do partial:
 
     // define polynomial
@@ -921,8 +921,8 @@ void test_evaluate_at(void)
     F128 ptsarr[2]= {p0,p1};
     Points pts= points_from_array(ptsarr,2);
 
-    // call evaluate_at
-    F128 result = evaluate_at(polynomial,&pts);
+    // call mle_poly_evaluate_at
+    F128 result = mle_poly_evaluate_at(polynomial,&pts);
 
     // do manual formula
     F128 one_minus_p0= f128_add(f128_one(),p0);

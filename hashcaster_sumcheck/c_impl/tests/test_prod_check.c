@@ -660,8 +660,8 @@ void test_prodcheck_full(void)
     
     F128 final_claim= f128_zero();
     for(size_t i=0; i<N; i++){
-        F128 manual_eval_p = evaluate_at( &p_arr[i], pc->challenges);
-        F128 manual_eval_q = evaluate_at( &q_arr[i], pc->challenges);
+        F128 manual_eval_p = mle_poly_evaluate_at( &p_arr[i], pc->challenges);
+        F128 manual_eval_q = mle_poly_evaluate_at( &q_arr[i], pc->challenges);
         TEST_ASSERT_TRUE_MESSAGE(f128_eq(manual_eval_p, out.p_evaluations->elems[i]), "p_evals mismatch");
         TEST_ASSERT_TRUE_MESSAGE(f128_eq(manual_eval_q, out.q_evaluations->elems[i]), "q_evals mismatch");
 

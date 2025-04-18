@@ -5,7 +5,7 @@
 
 // Evaluate the polynomial using Horner's method:
 // P(x) = coeffs[len-1] + x*( coeffs[len-2] + x*( ... + x*coeffs[0] ) )
-F128 polynomial_evaluate_at(const UnivariatePolynomial *poly, const F128 at)
+F128 univariate_polynomial_evaluate_at(const UnivariatePolynomial *poly, const F128 at)
 {
     F128 eval = f128_zero(); // Start with zero
 

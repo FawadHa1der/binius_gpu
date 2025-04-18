@@ -14,7 +14,7 @@ CC      = clang
 CFLAGS  =  -g -Wall -Wextra -std=c11 -arch arm64
 
 # List your source files here:
-SOURCES = ../field.c ../field.h ../matrix_utils.c ../matrix_utils.h tests_main.c test_field.c ../mle_poly.c ../debug_utils.c ../evaluations.c ../compressed_poly.c ../univariate_poly.c ../efficient_matrix.c test_efficient_matrix.c ../matrix_linear.c test_matrix_linear.c ../prod_check.c test_prod_check.c ../linear_check.c
+SOURCES = ../field.c ../field.h ../matrix_utils.c ../matrix_utils.h tests_main.c test_field.c ../mle_poly.c ../debug_utils.c ../evaluations.c ../compressed_poly.c ../univariate_poly.c ../efficient_matrix.c test_efficient_matrix.c ../matrix_linear.c test_matrix_linear.c ../prod_check.c test_prod_check.c ../linear_check.c test_linear_check.c ../types.c
 
 
 # Object files are derived from the source files:
@@ -25,7 +25,7 @@ UNITY_DIR = ./
 UNITY_SRC = $(UNITY_DIR)/unity.c 
 
 # Your test file & implementation
-TEST_SRC = test_field.c ../field.c ../matrix_utils.c tests_main.c test_matrix_utils.c ../gf128_polyval.c test_mle.c ../mle_poly.c ../debug_utils.c ../evaluations.c test_evaluations.c ../compressed_poly.c test_compressed_poly.c  ../univariate_poly.c test_univariate_poly.c ../efficient_matrix.c test_efficient_matrix.c ../matrix_linear.c test_matrix_linear.c ../prod_check.c test_prod_check.c
+TEST_SRC = test_field.c ../field.c ../matrix_utils.c tests_main.c test_matrix_utils.c ../gf128_polyval.c test_mle.c ../mle_poly.c ../debug_utils.c ../evaluations.c test_evaluations.c ../compressed_poly.c test_compressed_poly.c  ../univariate_poly.c test_univariate_poly.c ../efficient_matrix.c test_efficient_matrix.c ../matrix_linear.c test_matrix_linear.c ../prod_check.c ../linear_check.c test_prod_check.c test_linear_check.c ../types.c
 
 
 TEST_EXE = run_tests

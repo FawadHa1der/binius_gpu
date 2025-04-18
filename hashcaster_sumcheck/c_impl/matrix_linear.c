@@ -1,19 +1,24 @@
 #include "matrix_linear.h"
 #include <stdlib.h>
 #include <string.h>
-MatrixLinear matrix_linear_new(size_t n_in, size_t n_out, const F128* entries, size_t len_entries)
+MatrixLinear* matrix_linear_new(size_t n_in, size_t n_out, const F128* entries, size_t len_entries)
 {
     // Rust: "assert_eq!(entries.len(), n_in*n_out, 'Invalid matrix dimensions');"
     assert(len_entries == n_in*n_out && "Invalid matrix dimensions in matrix_linear_new");
 
-    MatrixLinear mat;
-    mat.n_in = n_in;
-    mat.n_out= n_out;
+    MatrixLinear* mat;
+    mat = (MatrixLinear*)malloc(sizeof(MatrixLinear));
+    if (!mat) {
+        // handle allocation failure
+        return NULL;
+    }
+    mat->n_in = n_in;
+    mat->n_out= n_out;
 
-    // allocate memory for mat.entries
-    mat.entries= (F128*)malloc(sizeof(F128)* (n_in*n_out));
+    // allocate memory for mat->entries
+    mat->entries= (F128*)malloc(sizeof(F128)* (n_in*n_out));
     // copy from user array
-    memcpy(mat.entries, entries, sizeof(F128)* (n_in*n_out));
+    memcpy(mat->entries, entries, sizeof(F128)* (n_in*n_out));
 
     return mat;
 }
@@ -25,6 +30,7 @@ void matrix_linear_free(MatrixLinear *mat)
         free(mat->entries);
         mat->entries= NULL;
     }
+    free(mat);
     // optional: mat->n_in=0; mat->n_out=0;
 }
 
@@ -94,4 +100,18 @@ void matrix_linear_apply_transposed(const MatrixLinear *mat,
             output[c]   = f128_add(output[c], partial);
         }
     }
+}
+
+
+bool matrix_linear_equal(const MatrixLinear* a, const MatrixLinear* b) {
+    if (a == NULL || b == NULL) return false;
+    if (a->n_in != b->n_in || a->n_out != b->n_out) return false;
+
+    size_t total = a->n_in * a->n_out;
+    for (size_t i = 0; i < total; ++i) {
+        if (!f128_eq(a->entries[i], b->entries[i])) {
+            return false;
+        }
+    }
+    return true;
 }

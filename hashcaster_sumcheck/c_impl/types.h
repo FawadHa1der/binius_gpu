@@ -6,6 +6,7 @@
 #include <arm_neon.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 
 // For a GF(2^128) element, we store two 64-bit words:
@@ -44,41 +45,14 @@ typedef struct {
 } Points; 
 
 
-typedef Points UnivariatePolynomial;
 
 
-static inline void points_free(Points* points){
-    if(points->elems != NULL){
-        free(points->elems);
-        points->elems = NULL;
-    }
-    points->len = 0;
-    free(points);
-    points = NULL;
-}
+void points_split_at(const Points* input, size_t split_index, Points** pt_active, Points** pt_dormant);
 
-static inline Points* points_init(size_t len){
-    Points* pts = (Points*)malloc(sizeof(Points));
-    if (pts == NULL) {
-        // handle allocation failure
-        pts->len = 0;
-        pts->elems = NULL;
-        return pts;
-    }
-    pts->len = len;
-    if (len == 0) {
-        pts->elems = NULL;
-        return pts;
-    }
-    pts->elems = (F128*)malloc(sizeof(F128) * len);
-    if (pts->elems == NULL) {
-        // handle allocation failure
-        pts->len = 0;
-        return pts;
-    }
-    return pts;
-}
+void points_free(Points* points);
+
+Points* points_init(size_t len, F128 value);
 
 
-
+bool points_equal(const Points* a, const Points* b);
 #endif

@@ -7,6 +7,7 @@
 #include <arm_neon.h>
 #include "types.h"
 #include "field.h"
+#include "univariate_poly.h"
 
 typedef struct{
     Points *compressed_coeff; // compressed polynomial

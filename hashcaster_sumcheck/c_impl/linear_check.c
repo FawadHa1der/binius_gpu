@@ -51,14 +51,14 @@ ProdCheck* lincheck_builder_build(LinCheckBuilder *builder, const F128 *gamma) {
     size_t chunk_size = 1ULL << builder->num_active_vars;
 
     // Split points into active and dormant
-    Points pt_active, pt_dormant;
+    Points* pt_active, *pt_dormant;
     points_split_at(builder->points, builder->num_active_vars, &pt_active, &pt_dormant);
 
     // eq_poly for dormant points
-    MLE_POLY* eq_dormant = points_to_eq_poly(&pt_dormant);
+    MLE_POLY* eq_dormant = points_to_eq_poly(pt_dormant);
 
     // Restrict input polynomials
-    MLE_POLY_SEQUENCE* p_polys = mle_sequence_new(builder->N, chunk_size);
+    MLE_POLY_SEQUENCE* p_polys = mle_sequence_new(builder->N, chunk_size, f128_zero());
 
     for (size_t i = 0; i < builder->N; i++) {
         for (size_t j = 0; j < eq_dormant->len; j++) {
@@ -78,7 +78,7 @@ ProdCheck* lincheck_builder_build(LinCheckBuilder *builder, const F128 *gamma) {
     }
 
     // eq_poly for active points
-    MLE_POLY* eq_active = points_to_eq_poly(&pt_active);
+    MLE_POLY* eq_active = points_to_eq_poly(pt_active);
 
     // Combine gamma powers and active equality polynomial
     size_t gamma_eqs_len = builder->M * chunk_size;
@@ -94,7 +94,7 @@ ProdCheck* lincheck_builder_build(LinCheckBuilder *builder, const F128 *gamma) {
     matrix_linear_apply_transposed(builder->matrix, gamma_eqs, gamma_eqs_len , q->coeffs, q->len);
 
     // Split q into N polynomials
-    MLE_POLY_SEQUENCE* q_polys = mle_sequence_new(builder->N, chunk_size);
+    MLE_POLY_SEQUENCE* q_polys = mle_sequence_new(builder->N, chunk_size, f128_zero());
     for (size_t i = 0; i < builder->N; i++) {
         memcpy(q_polys->mle_poly[i].coeffs, &q->coeffs[i * chunk_size], chunk_size * sizeof(F128));
     }
@@ -102,8 +102,6 @@ ProdCheck* lincheck_builder_build(LinCheckBuilder *builder, const F128 *gamma) {
     // Verify all chunks processed
     assert(q->len == builder->N * chunk_size);
 
-    // Evaluate initial claims using univariate polynomial
-    //    UnivariatePolynomial* uni_poly = univariate_poly_new(builder->initial_claims, builder->M);
     UnivariatePolynomial* uni_poly = malloc(sizeof(UnivariatePolynomial));
     uni_poly->elems = malloc(builder->M * sizeof(F128));
     uni_poly->len = builder->M;
@@ -111,18 +109,20 @@ ProdCheck* lincheck_builder_build(LinCheckBuilder *builder, const F128 *gamma) {
         uni_poly->elems[i] = builder->initial_claims[i];
     }
     // Evaluate the polynomial at the point gamma
-    F128 claim = polynomial_evaluate_at(uni_poly, *gamma);
+    F128 claim = univariate_polynomial_evaluate_at(uni_poly, *gamma);
 
     // Create ProdCheck instance
-    ProdCheck* prodcheck = prodcheck_new(p_polys, q_polys, builder->N, claim, 1);
+    ProdCheck* prodcheck = prodcheck_new(p_polys->mle_poly, q_polys->mle_poly, builder->N, claim, 1);
 
     // Cleanup
     mle_poly_free(eq_dormant);
     mle_poly_free(eq_active);
     mle_poly_free(q);
-    univariate_poly_free(uni_poly);
+    points_free((Points*)uni_poly);
     free(gammas);
     free(gamma_eqs);
+    points_free(pt_active);
+    points_free(pt_dormant);
 
     return prodcheck;
 }
@@ -132,3 +132,4 @@ void lincheck_builder_free(LinCheckBuilder *builder) {
     free(builder->initial_claims);
     free(builder);
 }
+

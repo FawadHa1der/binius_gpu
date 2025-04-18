@@ -55,7 +55,7 @@ static inline MLE_POLY mlp_with_array(const F128* arr, size_t length)
 }
 
 // A destructor
-static inline void mlp_free(MLE_POLY* poly)
+static inline void mle_poly_free(MLE_POLY* poly)
 {
     if (poly == NULL) {
         return;
@@ -104,7 +104,7 @@ int cpu_v_movemask_epi8(const uint8_t* x);
 ///
 
 
-MLE_POLY_SEQUENCE* mle_sequence_new(size_t sequence_len, size_t poly_len);
+MLE_POLY_SEQUENCE* mle_sequence_new(size_t sequence_len, size_t poly_len, F128 value);
 void mle_sequence_free(MLE_POLY_SEQUENCE* seq);
 Points* clone_points(const Points *src);
 
@@ -122,7 +122,7 @@ Evaluations* restrict_polynomials(
     const Points *challenges, // challenge points
     size_t dims               // dimension
 );
-F128 evaluate_at(
+F128 mle_poly_evaluate_at(
     const MLE_POLY *poly, 
     const Points *points
 );

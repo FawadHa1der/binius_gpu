@@ -3,7 +3,7 @@
 #include "stdlib.h"
 #include "unity.h"
 
-void test_univariate_polynomial_evaluate_at(void)
+void test_univariate_univariate_polynomial_evaluate_at(void)
 {
     // "Define the polynomial P(x)= 3 + 2x + x^2"
     Points* coeffs;
@@ -27,7 +27,7 @@ void test_univariate_polynomial_evaluate_at(void)
     F128 expected= f128_add(partA, term1); // 7 +4= 11 in a real sense
 
     // result = polynomial_evaluate(...) if we have a function:
-    F128 result = polynomial_evaluate_at(coeffs, x);
+    F128 result = univariate_polynomial_evaluate_at(coeffs, x);
 
     TEST_ASSERT_TRUE_MESSAGE(
         f128_eq(result, expected),
@@ -71,10 +71,10 @@ void test_from_evaluations_deg2(void)
         );
     }
 
-    // Also check evaluate_at(0)== W(0), evaluate_at(1)== W(1)
+    // Also check mle_poly_evaluate_at(0)== W(0), mle_poly_evaluate_at(1)== W(1)
     // We'll define x=0 => P(0)= c0 => 3
     F128 zero= f128_zero();
-    F128 r0= polynomial_evaluate_at(poly, zero);
+    F128 r0= univariate_polynomial_evaluate_at(poly, zero);
     TEST_ASSERT_TRUE_MESSAGE(
         f128_eq(r0, evals->elems[0]),
         "Evaluation at t=0 failed"
@@ -82,7 +82,7 @@ void test_from_evaluations_deg2(void)
 
     // x=1 => c0+ c1+ c2 => check eq evals->elems[1]
     F128 one= f128_one();
-    F128 r1= polynomial_evaluate_at(poly, one);
+    F128 r1= univariate_polynomial_evaluate_at(poly, one);
     TEST_ASSERT_TRUE_MESSAGE(
         f128_eq(r1,evals->elems[1]),
         "Evaluation at t=1 failed"

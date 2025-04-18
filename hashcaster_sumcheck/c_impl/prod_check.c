@@ -73,7 +73,7 @@ ProdCheck* prodcheck_new(MLE_POLY* p_arr,
 
     ProdCheck* pc= prodcheck_default();
     pc->N= N;
-    pc->challenges= points_init(num_vars); 
+    pc->challenges= points_init(num_vars, f128_zero()); 
     // allocate new arrays, copy references
     pc->p_polys= (MLE_POLY*)malloc(sizeof(MLE_POLY)*N);
     pc->q_polys= (MLE_POLY*)malloc(sizeof(MLE_POLY)*N);
@@ -89,10 +89,10 @@ ProdCheck* prodcheck_new(MLE_POLY* p_arr,
 
 void prodcheck_free(ProdCheck* pc){
     if(pc->p_polys){
-        // optionally mlp_free each 
+        // optionally mle_poly_free each 
         for(size_t i=0;i<pc->N;i++){ // free them if we made a deep copy
-            // mlp_free(&pc->p_polys[i].coeffs);
-            // mlp_free(&pc->q_polys[i]);
+            // mle_poly_free(&pc->p_polys[i].coeffs);
+            // mle_poly_free(&pc->q_polys[i]);
         }
         free(pc->p_polys);
         free(pc->q_polys);
@@ -194,7 +194,7 @@ void prodcheck_bind(ProdCheck* pc, F128 r, int challenge_index)
     // first retrieve the "round_poly" => do the same logic as above
     CompressedPoly* cp = prodcheck_round_polynomial(pc);
     UnivariatePolynomial* poly = uncompress_poly(cp);
-    F128 new_claim = polynomial_evaluate_at(poly, r);
+    F128 new_claim = univariate_polynomial_evaluate_at(poly, r);
 
     pc->claim= new_claim;
 
@@ -240,8 +240,8 @@ void prodcheck_bind(ProdCheck* pc, F128 r, int challenge_index)
     // free old polynomials
     // TODO BETTER CLEAN UP HERE
     // for(size_t i=0; i< pc->N;i++){
-    //     mlp_free(&pc->p_polys[i]); 
-    //     mlp_free(&pc->q_polys[i]);
+    //     mle_poly_free(&pc->p_polys[i]); 
+    //     mle_poly_free(&pc->q_polys[i]);
     // }
     free(pc->p_polys);
     free(pc->q_polys);

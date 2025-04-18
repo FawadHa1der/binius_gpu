@@ -507,7 +507,7 @@ Evaluations* restrict_polynomials(
 
 
 // Evaluate polynomial at given 'points'
-F128 evaluate_at(
+F128 mle_poly_evaluate_at(
     const MLE_POLY *poly, 
     const Points *points
 )
@@ -539,7 +539,7 @@ F128 evaluate_at(
 }
 
 
-MLE_POLY_SEQUENCE* mle_sequence_new(size_t sequence_len, size_t poly_len)
+MLE_POLY_SEQUENCE* mle_sequence_new(size_t sequence_len, size_t poly_len, F128 value)
 {
     MLE_POLY_SEQUENCE* seq = (MLE_POLY_SEQUENCE*)malloc(sizeof(MLE_POLY_SEQUENCE));
     if (!seq) {
@@ -565,6 +565,10 @@ MLE_POLY_SEQUENCE* mle_sequence_new(size_t sequence_len, size_t poly_len)
             free(seq->mle_poly);
             free(seq);
             return NULL;
+        }
+        // Initialize coefficients to the given value
+        for (size_t j = 0; j < poly_len; j++) {
+            seq->mle_poly[i].coeffs[j] = value;
         }
     }
 

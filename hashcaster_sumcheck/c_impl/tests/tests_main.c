@@ -13,6 +13,7 @@
 #include "test_efficient_matrix.h"
 #include "test_matrix_linear.h"
 #include "test_prod_check.h"
+#include "test_linear_check.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -89,7 +90,7 @@ int main(void)
     RUN_TEST(test_coeffs_large_coefficients);
 
     // univariate polynomial tests
-    RUN_TEST(test_univariate_polynomial_evaluate_at);
+    RUN_TEST(test_univariate_univariate_polynomial_evaluate_at);
     RUN_TEST(test_from_evaluations_deg2);
     RUN_TEST(test_multiply_degree2_by_degree1);
 
@@ -133,6 +134,16 @@ int main(void)
     // RUN_TEST(test_prodcheck_finish_incomplete_state);// SHOULD FAIL
     RUN_TEST(test_prodcheck_finish_multiple_variables);
     RUN_TEST(test_prodcheck_full);
+
+
+    // linear_check tests
+    RUN_TEST(test_new_lincheck);
+    //RUN_TEST(test_invalid_matrix_dimensions); // SHOULD FAIL
+    //RUN_TEST(test_invalid_polynomial_length); // SHOULD FAIL
+    RUN_TEST(test_lincheck_builder_new_with_valid_inputs);
+    RUN_TEST(test_lincheck_builder_build);
+
+
 
 
     return UNITY_END();

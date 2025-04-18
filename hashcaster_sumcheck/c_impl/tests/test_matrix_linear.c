@@ -20,7 +20,7 @@ void test_apply_identity_matrix(void)
     flattened[3]= row2_col1; // row2 col1
 
     // "MatrixLinear::new(2,2, flattened)"
-    MatrixLinear mat= matrix_linear_new(2,2, flattened, 4);
+    MatrixLinear *mat= matrix_linear_new(2,2, flattened, 4);
 
     // "input= [5,7]"
     F128 input[2];
@@ -33,13 +33,13 @@ void test_apply_identity_matrix(void)
     output[1]= f128_zero();
 
     // "mat.apply(&input, &mut output)"
-    matrix_linear_apply(&mat, input, 2, output, 2);
+    matrix_linear_apply(mat, input, 2, output, 2);
 
     // "assert_eq!(output, input)"
     TEST_ASSERT_F128_EQUAL_MESSAGE(output[0], input[0], "Identity matrix apply: output[0]!= input[0]");
     TEST_ASSERT_F128_EQUAL_MESSAGE(output[1], input[1], "Identity matrix apply: output[1]!= input[1]");
 
-    matrix_linear_free(&mat);
+    matrix_linear_free(mat);
 }
 
 // test_apply_transposed_identity_matrix
@@ -52,7 +52,7 @@ void test_apply_transposed_identity_matrix(void)
     flattened[2]= f128_from_uint64(0ULL);
     flattened[3]= f128_one(); // row1 col0
 
-    MatrixLinear mat= matrix_linear_new(2,2, flattened,4);
+    MatrixLinear *mat= matrix_linear_new(2,2, flattened,4);
 
     // input= [3,4], output= [0,0]
     F128 input[2], output[2];
@@ -63,13 +63,13 @@ void test_apply_transposed_identity_matrix(void)
     output[1]= f128_zero();
 
     // apply_transposed
-    matrix_linear_apply_transposed(&mat, input, 2, output, 2);
+    matrix_linear_apply_transposed(mat, input, 2, output, 2);
 
     // check => output== input
     TEST_ASSERT_F128_EQUAL_MESSAGE(output[0], input[0], "Identity matrix apply_transposed mismatch(0)");
     TEST_ASSERT_F128_EQUAL_MESSAGE(output[1], input[1], "Identity matrix apply_transposed mismatch(1)");
 
-    matrix_linear_free(&mat);
+    matrix_linear_free(mat);
 }
 
 // test_apply_arbitrary_matrix
@@ -94,7 +94,7 @@ void test_apply_arbitrary_matrix(void)
         flattened[5]= c2; // row3 col1
     
         // 2) Create the matrix with n_in=2, n_out=3
-        MatrixLinear mat= matrix_linear_new(2, 3, flattened, 6);
+        MatrixLinear *mat= matrix_linear_new(2, 3, flattened, 6);
     
         // 3) input= [1,2]
         F128 d1= f128_from_uint64(1ULL);
@@ -110,7 +110,7 @@ void test_apply_arbitrary_matrix(void)
         }
     
         // 5) apply the matrix
-        matrix_linear_apply(&mat, input, 2, output, 3);
+        matrix_linear_apply(mat, input, 2, output, 3);
     
         // 6) expected => 
         //   row1 => a1*d1 + a2*d2 => 2*1 +3*2 => 8  (assuming normal integer math or GF(2^n) nuance)
@@ -137,7 +137,7 @@ void test_apply_arbitrary_matrix(void)
         TEST_ASSERT_F128_EQUAL_MESSAGE(output[2], out2, "Row3 mismatch");
     
         // 8) free
-        matrix_linear_free(&mat);
+        matrix_linear_free(mat);
 }
 
 
@@ -153,7 +153,7 @@ void test_apply_transposed_arbitrary_matrix(void)
     F128 c2= f128_from_uint64(5ULL);
 
     F128 flattened[6]= {a1,a2,b1,b2,c1,c2};
-    MatrixLinear mat= matrix_linear_new(2,3, flattened,6);
+    MatrixLinear *mat= matrix_linear_new(2,3, flattened,6);
 
     // input= [1,2,3], output= [0,0] 
     F128 input[3];
@@ -165,7 +165,7 @@ void test_apply_transposed_arbitrary_matrix(void)
     output[0]= f128_zero();
     output[1]= f128_zero();
 
-    matrix_linear_apply_transposed(&mat, input, 3, output, 2);
+    matrix_linear_apply_transposed(mat, input, 3, output, 2);
 
     // expected => [a1*1 + b1*2 + c1*3, a2*1 + b2*2 + c2*3]
     // let's do row wise:
@@ -188,7 +188,7 @@ void test_apply_transposed_arbitrary_matrix(void)
     TEST_ASSERT_F128_EQUAL_MESSAGE(output[0], out0_0, "Transposed row0 mismatch");
     TEST_ASSERT_F128_EQUAL_MESSAGE(output[1], out1_0, "Transposed row1 mismatch");
 
-    matrix_linear_free(&mat);
+    matrix_linear_free(mat);
 }
 
 // test_apply_invalid_input_size => expect panic => we do a "should panic" in Rust, in C we can forcibly fail:
@@ -201,7 +201,7 @@ void test_apply_invalid_input_size(void)
     flattened[2]= f128_from_uint64(0ULL);
     flattened[3]= f128_one();
 
-    MatrixLinear mat= matrix_linear_new(2,2, flattened,4);
+    MatrixLinear *mat= matrix_linear_new(2,2, flattened,4);
 
     // define input of length=1 => mismatch
     F128 input[1];
@@ -220,7 +220,7 @@ void test_apply_invalid_input_size(void)
     if (TEST_PROTECT()) {
         // assert(1==0);
 
-        matrix_linear_apply(&mat, input, 1, output, 2);
+        matrix_linear_apply(mat, input, 1, output, 2);
 
         // if we get here => no fail => we manually fail
         TEST_FAIL_MESSAGE("Expected panic but apply finished without error");
@@ -237,7 +237,7 @@ void test_apply_invalid_output_size(void)
     flattened[2]= f128_from_uint64(0ULL);
     flattened[3]= f128_from_uint64(1ULL);
 
-    MatrixLinear mat= matrix_linear_new(2,2, flattened,4);
+    MatrixLinear *mat= matrix_linear_new(2,2, flattened,4);
 
     // input= length=2 => ok
     F128 input[2];
@@ -250,7 +250,7 @@ void test_apply_invalid_output_size(void)
     if (TEST_PROTECT()) {
         // assert(1==0);
 
-       matrix_linear_apply(&mat, input, 2, output, 1);
+       matrix_linear_apply(mat, input, 2, output, 1);
 
         TEST_FAIL_MESSAGE("Expected panic but apply finished without error");
     }
