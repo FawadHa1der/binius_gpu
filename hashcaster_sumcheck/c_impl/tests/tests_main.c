@@ -142,7 +142,10 @@ int main(void)
     //RUN_TEST(test_invalid_polynomial_length); // SHOULD FAIL
     RUN_TEST(test_lincheck_builder_new_with_valid_inputs);
     RUN_TEST(test_lincheck_builder_build);
-
+    //RUN_TEST(test_lincheck_builder_invalid_matrix_input_size); // SHOULD FAIL
+    //RUN_TEST(test_lincheck_builder_invalid_matrix_output_size); // SHOULD FAIL
+    //RUN_TEST(test_lincheck_builder_insufficient_points); // SHOULD FAIL
+    //RUN_TEST(test_lincheck_builder_invalid_polynomial_length); // SHOULD FAIL
 
 
 

@@ -96,3 +96,22 @@ UnivariatePolynomial* uncompress_poly(
     // return
     return full;
 }
+
+
+bool compressed_poly_eq(const CompressedPoly *compressed_poly_a, const CompressedPoly *compressed_poly_b)
+{
+    if (compressed_poly_a->compressed_coeff->len != compressed_poly_b->compressed_coeff->len) {
+        return false;
+    }
+
+    for (size_t i = 0; i < compressed_poly_a->compressed_coeff->len; i++) {
+        if (!f128_eq(compressed_poly_a->compressed_coeff->elems[i], compressed_poly_b->compressed_coeff->elems[i])) {
+            return false;
+        }
+    }
+    if (!f128_eq(compressed_poly_a->sum, compressed_poly_b->sum)) {
+        return false;
+    }
+
+    return true;
+}

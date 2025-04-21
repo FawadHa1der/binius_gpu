@@ -66,7 +66,8 @@ static inline void mle_poly_free(MLE_POLY* poly)
     free(poly);
 }
 
-static inline MLE_POLY* mle_poly_new_zeros(size_t len){
+static inline MLE_POLY* mle_poly_from_constant(size_t len, F128 value)
+{
     MLE_POLY* poly;
     poly = (MLE_POLY*)malloc(sizeof(MLE_POLY));
     if (poly == NULL) {
@@ -87,7 +88,7 @@ static inline MLE_POLY* mle_poly_new_zeros(size_t len){
         return poly;
     }
     for (size_t i = 0; i < len; i++) {
-        poly->coeffs[i] = f128_zero();
+        poly->coeffs[i] = value;
     }
     return poly;
 }

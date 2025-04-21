@@ -90,7 +90,7 @@ ProdCheck* lincheck_builder_build(LinCheckBuilder *builder, const F128 *gamma) {
     }
 
     // Apply transposed matrix to compute q
-    MLE_POLY* q = mle_poly_new_zeros(builder->N * chunk_size);
+    MLE_POLY* q = mle_poly_from_constant(builder->N * chunk_size, f128_zero());
     matrix_linear_apply_transposed(builder->matrix, gamma_eqs, gamma_eqs_len , q->coeffs, q->len);
 
     // Split q into N polynomials
@@ -112,7 +112,7 @@ ProdCheck* lincheck_builder_build(LinCheckBuilder *builder, const F128 *gamma) {
     F128 claim = univariate_polynomial_evaluate_at(uni_poly, *gamma);
 
     // Create ProdCheck instance
-    ProdCheck* prodcheck = prodcheck_new(p_polys->mle_poly, q_polys->mle_poly, builder->N, claim, 1);
+    ProdCheck* prodcheck = prodcheck_new(p_polys->mle_poly, q_polys->mle_poly, builder->N, claim, 0);
 
     // Cleanup
     mle_poly_free(eq_dormant);

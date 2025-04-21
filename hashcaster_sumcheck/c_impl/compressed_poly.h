@@ -21,5 +21,6 @@ UnivariatePolynomial* uncompress_poly(
 CompressedPoly* compress_poly(const Points* poly);
 
 
+bool compressed_poly_eq(const CompressedPoly *compressed_poly_a, const CompressedPoly *compressed_poly_b);
 
 #endif
