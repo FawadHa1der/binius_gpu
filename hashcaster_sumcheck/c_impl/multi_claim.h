@@ -7,18 +7,15 @@
 #include "prod_check.h"
 
 
-
-
 typedef struct  {
-    MLE_POLY* polys;            // array of size num_polys
-    size_t num_polys;
+    MLE_POLY_SEQUENCE* polys; // array of MLE_POLY
     Points* points;
     Evaluations* openings; // array of size num_polys * 128
 } MulticlaimBuilder;
 
 
 typedef struct {
-    MLE_POLY *polys;              // array of N polynomials (external, not owned)
+    MLE_POLY_SEQUENCE *polys;              // array of N polynomials (external, not owned)
     F128 gamma;                   // gamma used for Frobenius
     ProdCheck *object;            // the 1-polynomial prodcheck
     size_t N;
@@ -26,11 +23,10 @@ typedef struct {
 
 
 MulticlaimBuilder* multiclaim_builder_new(
-    MLE_POLY* polys,
-    size_t num_polys,
+    MLE_POLY_SEQUENCE* polys,
     Points* points,
     Evaluations* openings
-) ;
+)  ;
 
 MultiClaim* multiclaim_builder_build(
     MulticlaimBuilder* builder,
@@ -39,11 +35,11 @@ MultiClaim* multiclaim_builder_build(
 
 
 MultiClaim* multi_claim_new(
-    MLE_POLY poly,
+    MLE_POLY* poly,
     const Points *points,
     const F128 *openings,
-    const F128 *gamma_pows,
-    MLE_POLY *polys,
+    const Points *gamma_pows,
+    MLE_POLY_SEQUENCE *polys,
     size_t N
 );
 

@@ -14,6 +14,7 @@
 #include "test_matrix_linear.h"
 #include "test_prod_check.h"
 #include "test_linear_check.h"
+#include "test_multi_claim.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -147,6 +148,12 @@ int main(void)
     //RUN_TEST(test_lincheck_builder_insufficient_points); // SHOULD FAIL
     //RUN_TEST(test_lincheck_builder_invalid_polynomial_length); // SHOULD FAIL
 
+    // multi_claim tests
+    //RUN_TEST(test_multiclaim_builder_default);
+    RUN_TEST(test_multiclaim_builder_new_valid);
+    //RUN_TEST(test_multiclaim_builder_new_invalid_polynomial_length); // SHOULD FAIL
+    RUN_TEST(test_multiclaim_builder_new_edge_case);
+    RUN_TEST(test_multiclaim_builder_build_simple_case);
 
 
     return UNITY_END();

@@ -18,14 +18,6 @@ static int EfficientMatrix_equal(const EfficientMatrix* a, const EfficientMatrix
     TEST_ASSERT_TRUE_MESSAGE(EfficientMatrix_equal((a),(b)),(msg))
 
     
-EfficientMatrix efficient_matrix_zero(void)
-{
-    EfficientMatrix em;
-    for(int i=0; i<EFFICIENT_MATRIX_SIZE; i++){
-        em.data[i]= f128_zero();
-    }
-    return em;
-}
 
 // ---------------------------------------------------------------------
 // 1) test_from_cols_all_zeros
@@ -44,7 +36,7 @@ void test_from_cols_all_zeros(void)
     }
 
     // Call from_cols
-    EfficientMatrix matrix = from_cols(cols);
+    EfficientMatrix* matrix = from_cols(cols);
 
     // Manually compute the expected result => all zero
     EfficientMatrix expected;
@@ -54,7 +46,7 @@ void test_from_cols_all_zeros(void)
 
     // Compare
     TEST_ASSERT_MESSAGE(
-        EfficientMatrix_equal(&matrix, &expected),
+        EfficientMatrix_equal(matrix, &expected),
         "Precomputed sums for all-zero input should be zero."
     );
 }
@@ -79,7 +71,7 @@ void test_from_cols_single_non_zero_column(void)
     cols[0] = f128_from_uint64(1); // single non-zero column
 
     // 2) Call from_cols
-    EfficientMatrix matrix = from_cols(cols);
+    EfficientMatrix *matrix = from_cols(cols);
 
     // 3) Manually build expected data. For indices [0..256) in the first chunk (the rest are 0):
     //    if i is even => zero, else => col[0].
@@ -99,7 +91,7 @@ void test_from_cols_single_non_zero_column(void)
 
     // 4) Compare
     TEST_ASSERT_MESSAGE(
-        EfficientMatrix_equal(&matrix, &expected),
+        EfficientMatrix_equal(matrix, &expected),
         "Precomputed sums for a single non-zero column are incorrect."
     );
 }
@@ -124,12 +116,12 @@ void test_from_cols_with_queries(void)
     cols[4] = c4;
 
     // 3) Build the matrix
-    EfficientMatrix matrix = from_cols(cols);
+    EfficientMatrix* matrix = from_cols(cols);
 
     // We'll define a macro or function to check equality quickly
     #define CHECK_CELL(index, expectedVal)                                           \
         TEST_ASSERT_TRUE_MESSAGE(                                                   \
-            f128_eq(matrix.data[(index)], (expectedVal)),                      \
+            f128_eq(matrix->data[(index)], (expectedVal)),                      \
             "matrix[" #index "] does not match " #expectedVal );
 
     // 4) Assertions that replicate the Rust lines:
@@ -253,7 +245,7 @@ void test_from_rows_all_zeros(void)
     }
 
     // 2) from_rows
-    EfficientMatrix matrix = from_rows(rows);
+    EfficientMatrix* matrix = from_rows(rows);
 
     // 3) expected => from an all-zero input => columns also all zero => from_cols(all zero columns)
     // or build a direct "all zero" matrix if you know the final data layout:
@@ -261,10 +253,10 @@ void test_from_rows_all_zeros(void)
     for(int i=0;i<128;i++){
         zero_cols[i]= f128_zero();
     }
-    EfficientMatrix expected= from_cols(zero_cols);
+    EfficientMatrix *expected= from_cols(zero_cols);
 
     // 4) compare
-    TEST_ASSERT_EM_EQUAL_MESSAGE(&matrix, &expected, "Resulting matrix should be all zeros.");
+    TEST_ASSERT_EM_EQUAL_MESSAGE(matrix, expected, "Resulting matrix should be all zeros.");
 }
 
 
@@ -283,7 +275,7 @@ void test_from_rows_all_ones(void)
     }
 
     // from_rows => matrix
-    EfficientMatrix matrix= from_rows(rows);
+    EfficientMatrix* matrix= from_rows(rows);
 
     // Then we define "cols" => all zero except the first column is u128::MAX
     // We'll assume we have "F128_from_uint128(...)" or do the best we can:
@@ -298,10 +290,10 @@ void test_from_rows_all_ones(void)
     cols[0]= allones;
 
     // from_cols => expected
-    EfficientMatrix expected= from_cols(cols);
+    EfficientMatrix* expected= from_cols(cols);
 
     // compare
-    TEST_ASSERT_EM_EQUAL_MESSAGE(&matrix, &expected, "Resulting matrix does not match the expected result.");
+    TEST_ASSERT_EM_EQUAL_MESSAGE(matrix, expected, "Resulting matrix does not match the expected result.");
 }
 
 
@@ -316,7 +308,7 @@ void test_from_rows_single_element_in_first_row(void)
     rows[0]= f128_from_uint64(1);
 
     // from_rows
-    EfficientMatrix matrix= from_rows(rows);
+    EfficientMatrix* matrix= from_rows(rows);
 
     // expected => only the first column has first bit => so col[0]= 1
     F128 cols[128];
@@ -325,9 +317,9 @@ void test_from_rows_single_element_in_first_row(void)
     }
     cols[0]= f128_from_uint64(1);
 
-    EfficientMatrix expected= from_cols(cols);
+    EfficientMatrix* expected= from_cols(cols);
 
-    TEST_ASSERT_EM_EQUAL_MESSAGE(&matrix, &expected,
+    TEST_ASSERT_EM_EQUAL_MESSAGE(matrix, expected,
         "Resulting matrix does not match expected with single non-zero element in the first row.");
 }
 
@@ -359,7 +351,7 @@ void test_from_rows_alternate_rows_full_128_bits(void)
     }
 
     // from_rows => matrix
-    EfficientMatrix matrix= from_rows(rows);
+    EfficientMatrix* matrix= from_rows(rows);
 
     // Then define columns => i%2==0 => evenF, else oddF
     F128 cols[128];
@@ -371,9 +363,9 @@ void test_from_rows_alternate_rows_full_128_bits(void)
         }
     }
 
-    EfficientMatrix expected= from_cols(cols);
+    EfficientMatrix* expected= from_cols(cols);
 
-    TEST_ASSERT_EM_EQUAL_MESSAGE(&matrix,&expected,
+    TEST_ASSERT_EM_EQUAL_MESSAGE(matrix,expected,
         "Resulting matrix does not match expected with full 128-bit alternating row patterns.");
 }
 
@@ -389,17 +381,17 @@ void test_from_rows_all_rows_max(void)
     }
 
     // from_rows => matrix
-    EfficientMatrix matrix= from_rows(rows);
+    EfficientMatrix *matrix= from_rows(rows);
 
     // define columns => allones for each => from_cols => expected
     F128 cols[128];
     for(int i=0;i<128;i++){
         cols[i]= allones;
     }
-    EfficientMatrix expected= from_cols(cols);
+    EfficientMatrix *expected= from_cols(cols);
 
     TEST_ASSERT_EM_EQUAL_MESSAGE(
-        &matrix, &expected,
+        matrix, expected,
         "Resulting matrix does not match the expected result (all rows = max)."
     );
 }
@@ -407,13 +399,13 @@ void test_from_rows_all_rows_max(void)
 void test_apply_all_zeros(void)
 {
     // "Create an EfficientMatrix filled with zeros => default()"
-    EfficientMatrix matrix= efficient_matrix_zero();
+    EfficientMatrix *matrix= efficient_matrix_zero();
 
     // "Input vector filled with zeros => F128_ZERO"
     F128 input= f128_zero();
 
     // "Applying the matrix => result => matrix.apply(input)"
-    F128 result= efficient_matrix_apply(&matrix, input);
+    F128 result= efficient_matrix_apply(matrix, input);
 
     // "Expected => zero"
     TEST_ASSERT_F128_EQUAL_MESSAGE(result, f128_zero(),
@@ -462,7 +454,7 @@ void test_apply_against_traditional_matrix(void)
         // interpret cols[i] as a small F128
         fCols[i]= f128_from_uint64(cols[i]);
     }
-    EfficientMatrix matrix= from_cols(fCols);
+    EfficientMatrix *matrix= from_cols(fCols);
 
     // "Create a traditional matrix from the columns => Matrix::new(cols)"
     Matrix traditional = matrix_new(fCols);
@@ -470,7 +462,7 @@ void test_apply_against_traditional_matrix(void)
     // "Generate a random input vector => 64 bits"
     F128 inputField= f128_rand();
 
-    F128 result_efficient= efficient_matrix_apply(&matrix, inputField);
+    F128 result_efficient= efficient_matrix_apply(matrix, inputField);
 
     // "Apply the traditional matrix => result_traditional= matrix.apply(rhs)"
     F128 expected= matrix_apply(&traditional, inputField);
@@ -490,20 +482,19 @@ void test_frobenius_inv_lc_all_zeros(void)
     }
 
     // "matrix= from_frobenius_inv_lc(&gammas)"
-    EfficientMatrix matrix= from_frobenius_inv_lc(gammas);
+    EfficientMatrix *matrix= from_frobenius_inv_lc(gammas);
 
     // "expected= EfficientMatrix::default() => all zero"
-    EfficientMatrix expected= efficient_matrix_zero();
+    EfficientMatrix *expected= efficient_matrix_zero();
 
     // "assert eq"
     // We'll define a helper or do a loop compare
     for(int i=0;i<EFFICIENT_MATRIX_SIZE;i++){
-        TEST_ASSERT_F128_EQUAL_MESSAGE(matrix.data[i], expected.data[i],
+        TEST_ASSERT_F128_EQUAL_MESSAGE(matrix->data[i], expected->data[i],
             "Matrix should be all zeros when gammas are zero.");
     }
 }
 
-// =========== 5) test_frobenius_inv_lc_single_gamma =======
 void test_frobenius_inv_lc_single_gamma(void)
 {
     // "Initialize gammas => all zero except gamma[0]= from(5467)"
@@ -516,7 +507,7 @@ void test_frobenius_inv_lc_single_gamma(void)
     gammas[0]= val5467;
 
     // "matrix= from_frobenius_inv_lc(&gammas)"
-    EfficientMatrix matrix= from_frobenius_inv_lc(gammas);
+    EfficientMatrix *matrix= from_frobenius_inv_lc(gammas);
     F128 expected_cols[128];
     for(int j=0;j<128;j++){
         F128 frobVal= FROBENIUS[0][j];
@@ -528,16 +519,15 @@ void test_frobenius_inv_lc_single_gamma(void)
         expected_cols[j]= partial;
     }
     // "expected= from_cols(&expected_cols)"
-    EfficientMatrix expected= from_cols(expected_cols);
+    EfficientMatrix *expected= from_cols(expected_cols);
 
     // compare
     for(int i=0;i<EFFICIENT_MATRIX_SIZE;i++){
-        TEST_ASSERT_F128_EQUAL_MESSAGE(matrix.data[i], expected.data[i],
+        TEST_ASSERT_F128_EQUAL_MESSAGE(matrix->data[i], expected->data[i],
             "Matrix should match the expected result for a single non-zero gamma.");
     }
 }
 
-// =========== 6) test_frobenius_inv_lc_multiple_nonzero_gammas ===
 void test_frobenius_inv_lc_multiple_nonzero_gammas(void)
 {
     // "gammas= [0..] => gammas[0]= from(383), gammas[1]= from(463)"
@@ -551,7 +541,7 @@ void test_frobenius_inv_lc_multiple_nonzero_gammas(void)
     gammas[1]= val463;
 
     // "matrix= from_frobenius_inv_lc(&gammas)"
-    EfficientMatrix matrix= from_frobenius_inv_lc(gammas);
+    EfficientMatrix *matrix= from_frobenius_inv_lc(gammas);
 
     F128 expected_cols[128];
     for(int j=0;j<128;j++){
@@ -565,16 +555,15 @@ void test_frobenius_inv_lc_multiple_nonzero_gammas(void)
         expected_cols[j]= sum;
     }
 
-    EfficientMatrix expected= from_cols(expected_cols);
+    EfficientMatrix *expected= from_cols(expected_cols);
 
     // compare
     for(int i=0;i<EFFICIENT_MATRIX_SIZE;i++){
-        TEST_ASSERT_F128_EQUAL_MESSAGE(matrix.data[i], expected.data[i],
+        TEST_ASSERT_F128_EQUAL_MESSAGE(matrix->data[i], expected->data[i],
             "Matrix should match the expected result for multiple non-zero gammas.");
     }
 }
 
-// =========== 7) test_frobenius_inv_lc_wraparound_indices ===
 void test_frobenius_inv_lc_wraparound_indices(void)
 {
     // "gammas[127]= from(5363)"
@@ -586,7 +575,7 @@ void test_frobenius_inv_lc_wraparound_indices(void)
     gammas[127]= val5363;
 
     // "matrix= from_frobenius_inv_lc(&gammas)"
-    EfficientMatrix matrix= from_frobenius_inv_lc(gammas);
+    EfficientMatrix *matrix= from_frobenius_inv_lc(gammas);
 
     F128 expected_cols[128];
     for(int j=0;j<128;j++){
@@ -595,11 +584,11 @@ void test_frobenius_inv_lc_wraparound_indices(void)
         expected_cols[j]= product;
     }
 
-    EfficientMatrix expected= from_cols(expected_cols);
+    EfficientMatrix *expected= from_cols(expected_cols);
 
     // compare
     for(int i=0;i<EFFICIENT_MATRIX_SIZE;i++){
-        TEST_ASSERT_F128_EQUAL_MESSAGE(matrix.data[i], expected.data[i],
+        TEST_ASSERT_F128_EQUAL_MESSAGE(matrix->data[i], expected->data[i],
             "Matrix should match the expected result for wraparound indices.");
     }
 }

@@ -18,12 +18,13 @@ typedef struct {
 } EfficientMatrix;
 
 
-EfficientMatrix from_rows(const F128 rows[NUM_ROWS]);
-EfficientMatrix from_cols(const F128 cols[NUM_COLS]);
-EfficientMatrix from_frobenius_inv_lc(const F128 gammas[NUM_COLS]);
+EfficientMatrix* from_rows(const F128 rows[NUM_ROWS]);
+EfficientMatrix* from_cols(const F128 cols[NUM_COLS]);
+EfficientMatrix* from_frobenius_inv_lc(const F128 gammas[NUM_COLS]);
+EfficientMatrix* efficient_matrix_zero(void);
 F128 efficient_matrix_apply(const EfficientMatrix *matrix, F128 rhs);
 
-
+void efficient_matrix_free(EfficientMatrix *matrix);
 
 
 #endif

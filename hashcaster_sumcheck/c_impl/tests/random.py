@@ -67,8 +67,10 @@ def main():
     #     for line in fin:
     #         line_out = process_line(line.rstrip("\n"))
     #         fout.write(line_out + "\n")
-    low, high = split_128_to_64(225730887183604071602915146884576182279)
+    low, high = split_128_to_64(2574272996408619633255967640883560473)
     print(f"0x{low:016x}, 0x{high:016x}")
+    # print in dec
+    print(f"{low}, {high}")
     # Test the process_line function
 if __name__ == "__main__":
     main()

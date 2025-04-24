@@ -47,18 +47,18 @@ static const IdxU64ShiftPair IDX_U64_SHIFT[CHUNK_COUNT] = {
 
 
 // A default for "EfficientMatrix"
-inline EfficientMatrix efficient_matrix_default(void)
+inline EfficientMatrix* efficient_matrix_default(void)
 {
-    EfficientMatrix em;
+    EfficientMatrix* em = malloc(sizeof(EfficientMatrix));
     for(int i=0; i<EFFICIENT_MATRIX_SIZE; i++){
-        em.data[i]= f128_zero();
+        em->data[i]= f128_zero();
     }
     return em;
 }
 
 
 // For "from_frobenius_inv_lc" 
-EfficientMatrix from_frobenius_inv_lc(const F128 gammas[NUM_COLS])
+EfficientMatrix* from_frobenius_inv_lc(const F128 gammas[NUM_COLS])
 {
     // 1) compute minus_indices => (NUM_COLS - i) % NUM_COLS
     uint32_t minus_indices[NUM_COLS];
@@ -86,7 +86,7 @@ EfficientMatrix from_frobenius_inv_lc(const F128 gammas[NUM_COLS])
     return from_cols(ret);
 }
 
-EfficientMatrix from_rows(const F128 rows[NUM_ROWS])
+EfficientMatrix* from_rows(const F128 rows[NUM_ROWS])
 {
     uint64_t colvals[256];
     for(int i=0;i<256;i++){
@@ -151,26 +151,27 @@ EfficientMatrix from_rows(const F128 rows[NUM_ROWS])
     return from_cols(cols);
 }
 
-static inline EfficientMatrix efficient_matrix_zero(void)
+EfficientMatrix* efficient_matrix_zero(void)
 {
-    EfficientMatrix em;
+    EfficientMatrix* em;
+    em= malloc(sizeof(EfficientMatrix));
     for(int i=0; i<EFFICIENT_MATRIX_SIZE; i++){
-        em.data[i].low=0;
-        em.data[i].high=0;
+        em->data[i].low=0;
+        em->data[i].high=0;
     }
     return em;
 }
 // from_cols => we produce 256 sums for each group of 8 columns => total groups= NUM_COLS/8=16 => total=16*256=4096
-EfficientMatrix from_cols(const F128 cols[NUM_COLS])
+EfficientMatrix* from_cols(const F128 cols[NUM_COLS])
 {
-    EfficientMatrix em= efficient_matrix_zero();
+    EfficientMatrix* em= efficient_matrix_zero();
 
     int group_count= NUM_COLS/8; // typically 16
     for(int g=0; g< group_count; g++){
         // sums => em.data[ g*256 .. g*256+255 ]
         int base= g*256;
         // sums[0]= 0
-        em.data[ base+0 ]= (F128){0,0};
+        em->data[ base+0 ]= (F128){0,0};
 
         // for i in [1..255], do "drop_top_bit((uint8_t)i, &sum_idx, &row_idx)"
         for(int i=1; i<256; i++){
@@ -180,8 +181,8 @@ EfficientMatrix from_cols(const F128 cols[NUM_COLS])
             // sums[i]= sums[ res ] + cols[ 8*g + bit_idx ]
             // note that res is a 'uint8_t' => sums[base+ res]
             // bit_idx => which of the 8 columns in group
-            F128 partial_sum= f128_add( em.data[ base+ res ], cols[ 8*g + bit_idx ]);
-            em.data[ base+ i ]= partial_sum;
+            F128 partial_sum= f128_add( em->data[ base+ res ], cols[ 8*g + bit_idx ]);
+            em->data[ base+ i ]= partial_sum;
         }
     }
 
@@ -206,4 +207,10 @@ F128 efficient_matrix_apply(const EfficientMatrix *matrix, F128 rhs)
         acc= f128_add(acc, matrix->data[index]);
     }
     return acc;
+}
+void efficient_matrix_free(EfficientMatrix *matrix)
+{
+    if (matrix != NULL) {
+        free(matrix);
+    }
 }
