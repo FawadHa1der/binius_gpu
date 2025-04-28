@@ -18,7 +18,7 @@ typedef struct {
     MLE_POLY_SEQUENCE *polys;              // array of N polynomials (external, not owned)
     F128 gamma;                   // gamma used for Frobenius
     ProdCheck *object;            // the 1-polynomial prodcheck
-    size_t N;
+    // size_t N;
 } MultiClaim;
 
 
@@ -39,8 +39,7 @@ MultiClaim* multi_claim_new(
     const Points *points,
     const F128 *openings,
     const Points *gamma_pows,
-    MLE_POLY_SEQUENCE *polys,
-    size_t N
+    MLE_POLY_SEQUENCE *polys
 );
 
 void multi_claim_bind(MultiClaim *mc, const F128 challenge, int challenge_index);

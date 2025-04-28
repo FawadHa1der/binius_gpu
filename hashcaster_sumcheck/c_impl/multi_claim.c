@@ -120,8 +120,7 @@ MultiClaim* multiclaim_builder_build(
         points,
         folded_openings,
         gamma_pows,
-        builder->polys,
-        128
+        builder->polys
     );
 
     // Free temporary arrays if MultiClaim_new made copies, else keep ownership
@@ -134,12 +133,12 @@ MultiClaim* multi_claim_new(
     const Points *points,
     const F128 *openings,
     const Points *gamma_pows,
-    MLE_POLY_SEQUENCE *polys,
-    size_t N
+    MLE_POLY_SEQUENCE *polys
+    // size_t N
 ) {
     MultiClaim *mc = malloc(sizeof(MultiClaim));
     mc->polys = polys;
-    mc->N = N;
+    // mc->N = N;
 
     // Frobenius linear matrix
     EfficientMatrix *m = from_frobenius_inv_lc(gamma_pows->elems);
@@ -173,17 +172,17 @@ void multi_claim_bind(MultiClaim *mc, const F128 challenge, int challenge_index)
 }
 
 Evaluations* multi_claim_finish(MultiClaim *mc) {
-    Evaluations *out = points_init(mc->N, f128_zero());
+    Evaluations *out = points_init(mc->polys->len, f128_zero());
     F128 *evs = out->elems;
 
     // All evals except index 0
-    for (size_t i = 1; i < mc->N; i++) {
+    for (size_t i = 1; i < mc->polys->len; i++) {
         evs[i] = mle_poly_evaluate_at(&mc->polys->mle_poly[i], mc->object->challenges);
     }
 
     // Construct univariate poly with these coeffs
-    UnivariatePolynomial *uni = points_init(mc->N, f128_zero());
-    for (size_t i = 0; i < mc->N; i++) {
+    UnivariatePolynomial *uni = points_init(mc->polys->len, f128_zero());
+    for (size_t i = 0; i < mc->polys->len; i++) {
         uni->elems[i] = evs[i];
     }
 

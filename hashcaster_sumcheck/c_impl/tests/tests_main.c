@@ -154,6 +154,9 @@ int main(void)
     //RUN_TEST(test_multiclaim_builder_new_invalid_polynomial_length); // SHOULD FAIL
     RUN_TEST(test_multiclaim_builder_new_edge_case);
     RUN_TEST(test_multiclaim_builder_build_simple_case);
+    RUN_TEST(test_new_default_inputs);
+    RUN_TEST(test_new_with_nonzero_openings);
+    RUN_TEST(test_multiclaim_complete);
 
 
     return UNITY_END();
