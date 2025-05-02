@@ -241,4 +241,48 @@ Points* compute_gammas_folding(F128 gamma, size_t M)
 }
 
 
+// F128 f128_bitand(const F128 a, const F128 b){
+//     F128 result;
+//     result.low = a.low & b.low;
+//     result.high = a.high & b.high;
+//     return result;
+// }
+F128 f128_bitxor(const F128 a, const F128 b){
+    F128 result;
+    result.low = a.low ^ b.low;
+    result.high = a.high ^ b.high;
+    return result;
+}
+F128 f128_bitnot(const F128 a){
+    F128 result;
+    result.low = ~a.low;
+    result.high = ~a.high;
+    return result;
+}
+F128 f128_bitor(const F128 a, const F128 b){
+    F128 result;
+    result.low = a.low | b.low;
+    result.high = a.high | b.high;
+    return result;
+}
 
+
+
+F128 f128_shr(F128 x, uint32_t shift) {
+    F128 result = {0, 0};
+
+    if (shift == 0) {
+        return x;
+    } else if (shift < 64) {
+        result.low  = (x.low >> shift) | (x.high << (64 - shift));
+        result.high = (x.high >> shift);
+    } else if (shift < 128) {
+        result.low  = (x.high >> (shift - 64));
+        result.high = 0;
+    } else {
+        result.low = 0;
+        result.high = 0;
+    }
+
+    return result;
+}

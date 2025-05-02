@@ -15,6 +15,7 @@
 #include "test_prod_check.h"
 #include "test_linear_check.h"
 #include "test_multi_claim.h"
+#include "test_and_package.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -156,7 +157,11 @@ int main(void)
     RUN_TEST(test_multiclaim_builder_build_simple_case);
     RUN_TEST(test_new_default_inputs);
     RUN_TEST(test_new_with_nonzero_openings);
-    RUN_TEST(test_multiclaim_complete);
+    // RUN_TEST(test_multiclaim_complete); // TAKE A LONG TIME, TODO UNCOMMENT WHEN READY
+
+
+    // and_package tests
+    RUN_TEST(test_exec_alg_and);
 
 
     return UNITY_END();

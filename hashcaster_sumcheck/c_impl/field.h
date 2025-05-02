@@ -279,4 +279,11 @@ static inline F128 pi_calc(int i, const F128 *twists /* array of size 128 */)
 
 Points* compute_gammas_folding(F128 gamma, size_t M);
 
+
+F128 f128_shr(F128 x, uint32_t shift) ;
+F128 f128_bitxor(const F128 a, const F128 b);
+F128 f128_bitnot(const F128 a);
+F128 f128_bitor(const F128 a, const F128 b);
+
+
 #endif // F128_H
