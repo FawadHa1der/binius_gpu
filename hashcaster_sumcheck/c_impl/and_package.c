@@ -3,6 +3,7 @@
 
 void and_package_algebraic(
     const F128* data,
+    size_t data_len,
     size_t idx_a,
     size_t offset,
     F128 ret[3][O]
@@ -27,6 +28,16 @@ void and_package_algebraic(
 
         F128 a_next = data[idx_a + 1];  // assume bounds are managed externally
         F128 b_next = data[idx_b + 1];
+        if (idx_b + 1 >= data_len) {
+            // a_next = f128_zero();
+            b_next = f128_zero();
+        }
+
+        if (idx_a + 1 >= data_len) {
+            // a_next = f128_zero();
+            a_next = f128_zero();
+        }   
+        
 
         // Σ (ϕ_i * a * b)
         F128 t0 = f128_mul(a, b);

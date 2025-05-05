@@ -3,8 +3,14 @@
 
 void test_exec_alg_and(void) {
     // Step 1: Generate two random field elements
-    F128 a1 = f128_rand();
-    F128 a2 = f128_rand();
+    // let a1 = BinaryField128b::from(0b1010101010101010101010101010101010101010101010101010101010101010);
+    // let a2 = BinaryField128b::from(0b1100110011001100110011001100110011001100110011001100110011001100);
+    F128 a1 = f128_from_raw(0b1010101010101010101010101010101010101010101010101010101010101010, 0b1100110011001100110011001100110011001100110011001100110011001100);
+    F128 a2 = f128_from_raw(0b1100110011001100110011001100110011001100110011001100110011001100, 0b1010101010101010101010101010101010101010101010101010101010101010);
+
+
+    // F128 a1 = f128_rand();
+    // F128 a2 = f128_rand();
 
     // Step 2: Define test vectors
     F128 a[2] = { a1, a2 };
@@ -20,19 +26,20 @@ void test_exec_alg_and(void) {
         f128_shr(a1, 1),
         a2,
     };
+    
 
     // Step 3: Flatten a into bitsliced coordinates
     F128 input_coords[2 * 128];  // 2 elements × 128 bits
     for (int j = 0; j < 2; j++) {
         uint128_t val = (a[j]);
         for (int i = 0; i < 128; i++) {
-            input_coords[j * 128 + i] = f128_bitand(f128_shr(val , i), f128_from_uint64(1));
+            input_coords[j * 128 + i] = f128_bitand(f128_shr(val , i), f128_from_uint64(1)).low ? f128_one() : f128_zero();
         }
     }
 
     // Step 4: Call algebraic implementation
     F128 rhs[3][1];
-    and_package_algebraic(input_coords, 0, 1, rhs);
+    and_package_algebraic(input_coords, 256, 0, 1, rhs);
 
     // Step 5: Compute expected quadratic results
     F128 a_quad[1], b_quad[1], c_quad[1], d_quad[1];

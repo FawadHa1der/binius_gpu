@@ -9,6 +9,7 @@
 
 void and_package_algebraic(
     const F128* data,
+    size_t data_len,
     size_t idx_a,
     size_t offset,
     F128 ret[3][O]
