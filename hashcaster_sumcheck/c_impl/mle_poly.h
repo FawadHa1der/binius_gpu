@@ -106,6 +106,7 @@ int cpu_v_movemask_epi8(const uint8_t* x);
 
 
 MLE_POLY_SEQUENCE* mle_sequence_new(size_t sequence_len, size_t poly_len, F128 value);
+MLE_POLY_SEQUENCE* mle_sequence_copy(const MLE_POLY_SEQUENCE* src);
 void mle_sequence_free(MLE_POLY_SEQUENCE* seq);
 Points* clone_points(const Points *src);
 

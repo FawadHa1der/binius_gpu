@@ -16,6 +16,7 @@
 #include "test_linear_check.h"
 #include "test_multi_claim.h"
 #include "test_and_package.h"
+#include "test_boolcheck.h"
 // Unity expects these, even if empty
 void setUp(void)
 {
@@ -162,6 +163,15 @@ int main(void)
 
     // and_package tests
     RUN_TEST(test_exec_alg_and);
+
+    //boolcheck tests
+    RUN_TEST(test_trit_mapping_small_c);
+    RUN_TEST(test_trit_mapping_medium_c);
+    RUN_TEST(test_trit_mapping_large_c);
+    RUN_TEST(test_trit_mapping_no_c);
+    RUN_TEST(test_extend_n_tables);
+    
+
 
 
     return UNITY_END();

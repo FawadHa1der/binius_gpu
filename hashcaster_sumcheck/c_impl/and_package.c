@@ -2,19 +2,19 @@
 
 
 void and_package_algebraic(
-    const F128* data,
-    size_t data_len,
+    const Algebraic_Params* params,
+    const Points* data,
     size_t idx_a,
     size_t offset,
-    F128 ret[3][O]
+    F128 *ret[3] // TODO a better data structure for a 2D array ?
 ) {
     // Initialize indices
     idx_a *= 2;
     size_t idx_b = idx_a + offset * 128;
 
     // Initialize result to zero
-    for (int j = 0; j < 3; j++) {
-        for (int k = 0; k < O; k++) {
+    for (size_t j = 0; j < 3; j++) {
+        for (size_t k = 0; k < params->output_size; k++) {
             ret[j][k] = f128_zero();
         }
     }
@@ -23,17 +23,17 @@ void and_package_algebraic(
     for (size_t i = 0; i < 128; i++) {
         F128 basis = f128_basis(i);  // assume this returns the i-th basis element
 
-        F128 a = data[idx_a];
-        F128 b = data[idx_b];
+        F128 a = data->elems[idx_a];
+        F128 b = data->elems[idx_b];
 
-        F128 a_next = data[idx_a + 1];  // assume bounds are managed externally
-        F128 b_next = data[idx_b + 1];
-        if (idx_b + 1 >= data_len) {
+        F128 a_next = data->elems[idx_a + 1];  // assume bounds are managed externally
+        F128 b_next = data->elems[idx_b + 1];
+        if (idx_b + 1 >= data->len) {
             // a_next = f128_zero();
             b_next = f128_zero();
         }
 
-        if (idx_a + 1 >= data_len) {
+        if (idx_a + 1 >= data->len) {
             // a_next = f128_zero();
             a_next = f128_zero();
         }   
@@ -57,17 +57,19 @@ void and_package_algebraic(
 }
 
 void and_package_linear(
-    const F128 data[I],
-    F128 out[O]
+    const Algebraic_Params* params,
+    const Points* data,
+    Points* out
 ) {
-    for (size_t i = 0; i < O; i++) {
-        out[i] = f128_zero();
+    for (size_t i = 0; i < params->output_size; i++) {
+        out->elems[i] = f128_zero();
     }
 }
 
 void and_package_quadratic(
-    const F128 data[I],
-    F128 out[O]
+    const Algebraic_Params* params,
+    const Points* data,
+    Points* out
 ) {
-    out[0] = f128_bitand(data[0], data[1]);
+    out->elems[0] = f128_bitand(data->elems[0], data->elems[1]);
 }

@@ -1,6 +1,7 @@
 #include "types.h"
 #include "field.h"
-
+#include <stdlib.h>
+#include <string.h>
 
 void points_free(Points* points){
     if(points->elems != NULL){
@@ -10,6 +11,28 @@ void points_free(Points* points){
     points->len = 0;
     free(points);
     points = NULL;
+}
+
+// copy points
+Points* points_copy(const Points* src) {
+    if (src == NULL) {
+        return NULL;
+    }
+    Points* dst = (Points*)malloc(sizeof(Points));
+    if (dst == NULL) {
+        // handle allocation failure
+        return NULL;
+    }
+    dst->len = src->len;
+    dst->elems = (F128*)malloc(sizeof(F128) * src->len);
+    if (dst->elems == NULL) {
+        // handle allocation failure
+        free(dst);
+        return NULL;
+    }
+    memcpy(dst->elems, src->elems, sizeof(F128) * src->len);
+    return dst;
+
 }
 
 Points* points_init(size_t len, F128 value){

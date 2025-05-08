@@ -51,8 +51,9 @@ void points_split_at(const Points* input, size_t split_index, Points** pt_active
 
 void points_free(Points* points);
 
+
 Points* points_init(size_t len, F128 value);
 
-
+Points* points_copy(const Points* src) ;
 bool points_equal(const Points* a, const Points* b);
 #endif

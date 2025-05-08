@@ -575,6 +575,25 @@ MLE_POLY_SEQUENCE* mle_sequence_new(size_t sequence_len, size_t poly_len, F128 v
     return seq;
 }
 
+// copy the contents of one MLE_POLY_SEQUENCE to another, assume both are of same size
+MLE_POLY_SEQUENCE* mle_sequence_copy(const MLE_POLY_SEQUENCE* src)
+{
+    if (src == NULL) {
+        return NULL;
+    }
+
+    MLE_POLY_SEQUENCE* dst = mle_sequence_new(src->len, src->mle_poly[0].len, f128_zero());
+    if (dst == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < src->len; i++) {
+        memcpy(dst->mle_poly[i].coeffs, src->mle_poly[i].coeffs, src->mle_poly[i].len * sizeof(F128));
+    }
+
+    return dst;
+}
+
 void mle_sequence_free(MLE_POLY_SEQUENCE* seq){
     if (seq == NULL) {
         return;
