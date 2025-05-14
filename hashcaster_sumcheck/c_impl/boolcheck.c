@@ -1,6 +1,7 @@
 #include "boolcheck.h"
 #include <math.h>
 #include "mle_poly.h"
+#include "debug_utils.h"
 
 BoolCheckBuilder* bool_check_builder_new(
     int C_INITIAL_ROUNDS,
@@ -111,7 +112,7 @@ F128 quadratic_compressed(
     Points* quad = points_init(params->output_size, f128_zero());
 
     
-    alg_funcs->quadratic(params, arg, quad);  // quadratic() fills quad[M]
+    alg_funcs->quadratic(params, arg, quad);  // quadratic() fills quad[params->output_size]
 
     F128 acc = f128_zero();
     for (size_t i = 0; i < params->output_size; ++i) {
@@ -202,6 +203,7 @@ F128* extend_n_tables(
                         builder->algebraic_functions, &tables_ext_points_shallow_copy) ,
                                       linear_compressed(builder->gammas, builder->algebraic_operations,
                                                         builder->algebraic_functions, &tables_ext_points_shallow_copy));
+                    // print result_chunk[j]);
                 } else {
                     size_t j1 = j - offset;
                     size_t j2 = j - 2 * offset;
@@ -230,6 +232,9 @@ F128* extend_n_tables(
                 result_chunk[j] = quadratic_compressed(builder->gammas, builder->algebraic_operations,
                     builder->algebraic_functions, &args_shallow_copy);
             }
+            // printf("result_chunk[%zu] = ", j);
+            // f128_print (  "is" , result_chunk[j]);
+
         }
     }
 

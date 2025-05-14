@@ -108,10 +108,13 @@ void test_package_linear(
     Points* out
 ) {
     F128 res = f128_zero();
-    for (size_t i = 0; i < params->output_size; i++) {
-        res = f128_add(res,out->elems[i] ) ;
+    for (size_t i = 0; i < params->input_size; i++) {
+        res = f128_add(res,data->elems[i] ) ;
     }
-    out->elems[0] = res;
+
+    for (size_t i = 0; i < params->output_size; i++) {
+        out->elems[i] = res;
+    }
 }
 
 void test_package_quadratic(
@@ -120,10 +123,12 @@ void test_package_quadratic(
     Points* out
 ) {
     F128 res = f128_zero();
-    for (size_t i = 0; i < params->output_size; i++) {
-        res = f128_add(res, f128_mul(out->elems[i], out->elems[i]) );
+    for (size_t i = 0; i < params->input_size; i++) {
+        res = f128_add(res, f128_mul(data->elems[i], data->elems[i]) );
     }
-    out->elems[0] = res;
+    for (size_t i = 0; i < params->output_size; i++) {
+        out->elems[i] = res;
+    }
 }
 
 void test_extend_n_tables(void) {
@@ -165,6 +170,7 @@ void test_extend_n_tables(void) {
     // Setup points and claims
     Points* pts = points_init(dims, f128_zero());
     Points* claims = points_init(M, f128_zero());
+    Points* gammas = points_init(M, f128_one());
 
     // Setup polynomial sequence
     // MLE_POLY_SEQUENCE* polys = mle_sequence_from_tables((F128**)tables, N, table_size);
@@ -172,6 +178,7 @@ void test_extend_n_tables(void) {
     // BoolCheckBuilder
     BoolCheckBuilder* builder = bool_check_builder_new(C,
         pts, claims, polys, &dummy_params, &dummy_funcs);
+    builder ->gammas = gammas;        
 
     // Compute trit mapping
     uint16_t *bit_map = NULL, *trit_map = NULL;
