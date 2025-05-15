@@ -113,6 +113,7 @@ Points* clone_points(const Points *src);
 MLE_POLY* points_to_eq_poly(const Points* points);
 
 F128 points_eq_eval(const Points* a, const Points* b);
+F128 eq_eval(const F128 *left, const F128 *right, size_t length);
 Points points_default(void);
 MLE_POLY_SEQUENCE* points_to_eq_poly_sequence(const Points *points);
 bool mle_poly_eq(const MLE_POLY *a, const MLE_POLY *b);

@@ -241,6 +241,185 @@ F128* extend_n_tables(
     return result;
 }
 
+CompressedPoly* boolcheck_round_polynomial(BoolCheck* bc) {
+    size_t round = bc->challenges->len;
+    size_t num_vars = bc->num_vars;
+    assert(round < num_vars);
+
+    if (bc->round_polys_len > round) {
+        return &(bc->round_polys[round]);  // Already cached
+    }
+
+    Points* poly_deg2 = points_init(3, f128_zero());
+
+    if (round <= bc->c_param) {
+        // === Phase 1 computation using extended table ===
+        size_t dims_tail = num_vars - bc->c_param - 1;
+        size_t pow3 = pow(3, bc->c_param - round); // needs helper
+        for (size_t i = 0; i < (1UL << dims_tail); i++) {
+            size_t base_index = i << (bc->c_param - round);
+            size_t base_offset = 3 * (i * pow3);
+            for (size_t j = 0; j < (1UL << (bc->c_param - round)); j++) {
+                size_t offset = base_offset + 3 * bc->bit_mapping[j];
+                // F128 multiplier = bc->eq_sequence[num_vars - round - 1].data[base_index + j];
+                F128 multiplier = bc->eq_sequence->mle_poly[num_vars - round - 1].coeffs[base_index + j];
+
+                for (int t = 0; t < 3; t++) {
+                    poly_deg2->elems[t] = f128_add(poly_deg2->elems[t],
+                        f128_mul(bc->extended_table->elems[offset + t], multiplier));
+                }
+            }
+        }
+    } else {
+        // === Phase 2 computation using restrict ===
+        size_t half = 1UL << (num_vars - round - 1);
+        for (size_t i = 0; i < half; i++) {
+            F128 acc[3] = {f128_zero(), f128_zero(), f128_zero()};
+            // F128* algebraic = compute_algebraic(bc, i, 1UL << (num_vars - bc->c_param - 1));
+            algebraic_compressed(
+                bc->gammas,
+                bc->algebraic_operations,
+                bc->algebraic_functions,
+                bc->poly_coords,
+                i,
+                1UL << (num_vars - bc->c_param - 1),
+                acc
+            );
+            F128 multiplier = bc->eq_sequence->mle_poly[bc->points->len - round - 1].coeffs[i];
+            for (int k = 0; k < 3; k++) {
+                poly_deg2->elems[k] = f128_add(poly_deg2->elems[k], f128_mul(acc[k], multiplier));
+            }
+        }
+    }
+
+    // === Compute final compressed polynomial ===
+    F128 eq_y = eq_eval(bc->points->elems, bc->challenges->elems, round);
+    
+    // F128 eq_y = points_eq_eval_slice(&bc->challenges, bc->points, round);
+
+    // V(t) = W(t) * eq(r_<i>; q)
+    for (int i = 0; i < 3; i++) {
+        poly_deg2->elems[i] = f128_mul(poly_deg2->elems[i], eq_y);
+    }
+
+    // F128 eq_t[2] = {
+    //     f128_add(bc->points->elems[round], f128_one()),
+    //     f128_one()
+    // };
+    UnivariatePolynomial* eq_t = points_init(2, f128_zero());
+    eq_t->elems[0] = f128_add(bc->points->elems[round], f128_one());
+    eq_t->elems[1] = f128_one();
+
+    UnivariatePolynomial* result = multiply_degree2_by_degree1(poly_deg2, eq_t); // returns coeffs[3]
+
+    CompressedPoly* cp = compress_poly(result);
+    // F128 computed_claim = evaluate_univariate(&cp, bc->claim);
+    F128 computed_claim = univariate_polynomial_evaluate_at(result, bc->claim);
+    assert(f128_eq(computed_claim, bc->claim));
+
+    bc->round_polys[round] = *cp; // TODO clean this up, not sure this is the best approach
+    bc->round_polys_len++;
+    return cp;
+}
+
+void boolcheck_bind(BoolCheck* bc, const F128* r) {
+    size_t round = bc->challenges->len;
+    size_t num_vars = bc->num_vars;
+    assert(round < num_vars);
+
+    // 1. Compute round polynomial, decompress, evaluate at *r, update claim
+    CompressedPoly* round_poly = boolcheck_round_polynomial(bc);
+    UnivariatePolynomial* round_poly_coeffs = decompress_poly(round_poly, bc->claim);
+    bc->claim = univariate_polynomial_evaluate_at(round_poly_coeffs, *r);
+    // Free temp poly
+    free(round_poly_coeffs);
+
+    // 2. Push *r to bc->challenges
+    points_push(bc->challenges, *r);
+
+    // 3. If round <= bc->c_param, phase 1
+    if (round <= bc->c_param) {
+        // Compute r^2
+        F128 r2 = f128_mul(*r, *r);
+        // Number of chunks = bc->extended_table->len / 3
+        size_t n_chunks = bc->extended_table->len / 3;
+        for (size_t i = 0; i < n_chunks; ++i) {
+            F128* chunk = &bc->extended_table->elems[i * 3];
+            // chunk[0] = chunk[0] + (chunk[0] + chunk[1] + chunk[2]) * r + chunk[2] * r^2
+            F128 sum012 = f128_add(chunk[0], f128_add(chunk[1], chunk[2]));
+            F128 t1 = f128_add(chunk[0], f128_mul(sum012, *r));
+            chunk[0] = f128_add(t1, f128_mul(chunk[2], r2));
+            // chunk[1], chunk[2] are not needed anymore
+        }
+        // Compact vector: keep every third value (i.e., chunk[0] of each chunk)
+        for (size_t i = 0; i < n_chunks; ++i) {
+            bc->extended_table->elems[i] = bc->extended_table->elems[i * 3];
+        }
+        bc->extended_table->len = n_chunks;
+    } else {
+        // Phase 2
+        size_t half = 1UL << (num_vars - round - 1);
+        size_t chunk_size = 1UL << (num_vars - bc->c_param - 1);
+        size_t n_chunks = bc->poly_coords->len / chunk_size;
+        for (size_t chunk_idx = 0; chunk_idx < n_chunks; ++chunk_idx) {
+            F128* chunk = &bc->poly_coords->elems[chunk_idx * chunk_size];
+            for (size_t j = 0; j < half; ++j) {
+                // chunk[j] = chunk[2*j] + (chunk[2*j + 1] + chunk[2*j]) * r
+                F128 sum = f128_add(chunk[2*j+1], chunk[2*j]);
+                chunk[j] = f128_add(chunk[2*j], f128_mul(sum, *r));
+            }
+        }
+        // bc->poly_coords->len remains the same
+    }
+
+    // 4. If bc->challenges->len == bc->c_param + 1, clear extended_table and restrict
+    if (bc->challenges->len == bc->c_param + 1) {
+        // Clear extended_table
+        bc->extended_table->len = 0;
+        // Compute restrict and store in poly_coords
+        // restrict(polys, challenges, num_vars)
+        // polys: bc->polys, n = bc->n_polys
+        // challenges: bc->challenges
+        // Output length: n_polys * 128 * base_index
+        size_t out_len = 0;
+        
+        Evaluations* restricted_evals = restrict_polynomials(
+            bc->polys->mle_poly,
+            bc->polys->len,
+            bc->challenges,
+            num_vars
+        );
+        if (bc->poly_coords) points_free(bc->poly_coords);
+        bc->poly_coords = restricted_evals;
+    }
+}
+
+// BoolCheckOutput* boolcheck_finish(BoolCheck* bc) {
+//     // 1. Assert that bc->challenges->len == bc->num_vars
+//     assert(bc->challenges->len == bc->num_vars);
+//     // 2. Allocate BoolCheckOutput* out, compute base_index
+//     size_t base_index = 1UL << (bc->num_vars - bc->c_param - 1);
+//     size_t n_polys = bc->n_polys;
+//     size_t output_size = bc->output_size;
+//     // 3. Populate frob_evals_array of length 128 * output_size
+//     size_t frob_evals_len = 128 * output_size;
+//     F128* frob_evals_array = (F128*)malloc(frob_evals_len * sizeof(F128));
+//     for (size_t idx = 0; idx < frob_evals_len; ++idx) {
+//         size_t poly_idx = idx / 128;
+//         size_t frob_idx = idx % 128;
+//         // poly_coords: [n_polys * 128 * base_index]
+//         frob_evals_array[idx] = bc->poly_coords->elems[(poly_idx * 128 + frob_idx) * base_index];
+//     }
+//     // 4. Call FixedEvaluations* frob_evals = fixed_evaluations_new(frob_evals_array)
+//     FixedEvaluations* frob_evals = fixed_evaluations_new(frob_evals_array, frob_evals_len);
+//     // 5. Call fixed_evaluations_twist(frob_evals)
+//     fixed_evaluations_twist(frob_evals);
+//     // 6. Set out->frob_evals = frob_evals, out->round_polys = bc->round_polys
+//     BoolCheckOutput* out = boolcheck_output_new(frob_evals, bc->round_polys, bc->round_polys_len);
+//     // 7. Return out
+//     return out;
+// }
+
 // Free the BoolCheckBuilder
 void bool_check_builder_free(BoolCheckBuilder* builder) {
     if (builder == NULL) {
