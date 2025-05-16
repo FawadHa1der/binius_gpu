@@ -50,7 +50,7 @@ typedef struct {
 void points_split_at(const Points* input, size_t split_index, Points** pt_active, Points** pt_dormant);
 
 void points_free(Points* points);
-
+void points_push(Points* points, F128 value);
 
 Points* points_init(size_t len, F128 value);
 

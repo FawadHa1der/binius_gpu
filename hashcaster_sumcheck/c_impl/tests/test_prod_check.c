@@ -391,7 +391,7 @@ void test_prodcheck_bind_valid_challenge(void)
 
     // 5) Perform binding => challenge=3
     F128 challenge = f128_from_uint64(3ULL);
-    prodcheck_bind(pc, challenge, 0);
+    prodcheck_bind(pc, challenge);
 
     // 6) Manually compute partial sums => “pq_zero” repeated 3 times
     F128 p1q1_p3q3 = f128_add(f128_mul(p1, q1), f128_mul(p3, q3));
@@ -641,7 +641,7 @@ void test_prodcheck_full(void)
         current_claim= new_claim;
 
         // bind => update polynomials
-        prodcheck_bind(pc, challenge, round);
+        prodcheck_bind(pc, challenge);
     }
 
     // 6) now polynomials must be length=1
@@ -657,7 +657,6 @@ void test_prodcheck_full(void)
     // 7) get final evaluations => finish
     ProdCheckOutput out= prodcheck_finish(pc);
 
-    
     F128 final_claim= f128_zero();
     for(size_t i=0; i<N; i++){
         F128 manual_eval_p = mle_poly_evaluate_at( &p_arr[i], pc->challenges);

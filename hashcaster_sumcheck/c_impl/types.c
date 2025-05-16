@@ -102,3 +102,19 @@ bool points_equal(const Points* a, const Points* b) {
     }
     return true;
 }
+
+void points_push(Points* points, F128 value)
+{
+    if (points == NULL) return;
+
+    // Reallocate memory to accommodate the new element
+    points->elems = realloc(points->elems, (points->len + 1) * sizeof(F128));
+    if (points->elems == NULL) {
+        // handle allocation failure
+        return;
+    }
+
+    // Add the new element
+    points->elems[points->len] = value;
+    points->len++;
+}

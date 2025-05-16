@@ -42,7 +42,7 @@ MultiClaim* multi_claim_new(
     MLE_POLY_SEQUENCE *polys
 );
 
-void multi_claim_bind(MultiClaim *mc, const F128 challenge, int challenge_index);
+void multi_claim_bind(MultiClaim *mc, const F128 challenge);
 
 
 Evaluations* multi_claim_finish(MultiClaim *mc);

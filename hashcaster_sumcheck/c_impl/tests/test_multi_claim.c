@@ -281,7 +281,7 @@ void test_multiclaim_complete(void) {
         challenges->elems[round] = challenge;
 
         // Bind prover to challenge
-        multi_claim_bind(prover, challenge, round);
+        multi_claim_bind(prover, challenge);
     }
 
     // Compute equality evaluations

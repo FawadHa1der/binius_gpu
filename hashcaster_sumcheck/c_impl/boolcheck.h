@@ -12,7 +12,7 @@
 // #define C_INITIAL_ROUNDS 5 // referred to as C in the paper
 
 typedef struct {
-    int c_initial_rounds; // Number of rounds
+    size_t c_initial_rounds; // Number of rounds
     const Points* points;
     Points* gammas; // Folding challenge values
     Points* claims; // Initial claims
@@ -22,7 +22,7 @@ typedef struct {
 } BoolCheckBuilder;
 
 BoolCheckBuilder* bool_check_builder_new(
-    int C_INITIAL_ROUNDS,
+    size_t C_INITIAL_ROUNDS,
     const Points* points,
     Points* claims,
     MLE_POLY_SEQUENCE* polys,
@@ -81,9 +81,25 @@ typedef struct {
     Points* gammas;                              // folding challenges
     const Algebraic_Params* algebraic_operations;
     const Algebraic_Functions* algebraic_functions;
-    int num_vars;
-    int c_param;
+    size_t num_vars;
+    size_t c_param;
 } BoolCheck;
+
+
+// pub struct BoolCheckOutput<const N: usize, const M: usize> {
+//     /// Evaluations of the polynomials on a Frobenius subdomain.
+//     pub frob_evals: FixedEvaluations<N>,
+
+//     /// A vector of compressed polynomials computed during the protocol's rounds.
+//     pub round_polys: Vec<CompressedPoly<M>>,
+// }
+
+typedef struct {
+    Evaluations* frob_evals; // Frobenius evaluations
+    CompressedPoly* round_polys;  // round polynomials
+    size_t round_polys_len;
+} BoolCheckOutput;
+
 
 void bool_check_builder_free(BoolCheckBuilder* builder) ;
 
@@ -134,4 +150,10 @@ void algebraic_compressed(
     size_t offset,
     F128 result[3]
 ) ;
+
+
+CompressedPoly* boolcheck_round_polynomial(BoolCheck* bc) ;
+void boolcheck_bind(BoolCheck* bc, const F128* r);
+BoolCheckOutput* boolcheck_finish(BoolCheck* bc);
+void bool_check_builder_free(BoolCheckBuilder* builder)
 #endif

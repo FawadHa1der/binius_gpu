@@ -73,7 +73,7 @@ ProdCheck* prodcheck_new(MLE_POLY* p_arr,
 
     ProdCheck* pc= prodcheck_default();
     pc->N= N;
-    pc->challenges= points_init(num_vars, f128_zero()); 
+    pc->challenges= points_init(0, f128_zero()); 
     // allocate new arrays, copy references
     pc->p_polys= (MLE_POLY*)malloc(sizeof(MLE_POLY)*N);
     pc->q_polys= (MLE_POLY*)malloc(sizeof(MLE_POLY)*N);
@@ -184,7 +184,7 @@ CompressedPoly* prodcheck_round_polynomial(ProdCheck* pc)
     return cr;
 }
 
-void prodcheck_bind(ProdCheck* pc, F128 r, int challenge_index)
+void prodcheck_bind(ProdCheck* pc, F128 r)
 {
     size_t p0_len= pc->p_polys[0].len;
     assert(p0_len>1 && "The protocol is already complete");
@@ -199,7 +199,9 @@ void prodcheck_bind(ProdCheck* pc, F128 r, int challenge_index)
     pc->claim= new_claim;
 
     // push r into pc->challenges
-    pc->challenges->elems[challenge_index]= r;
+    points_push(pc->challenges, r);
+
+    // pc->challenges->elems[challenge_index]= r;
 
     // We now build new polynomials p_new, q_new each of length= half
     MLE_POLY* p_new = (MLE_POLY*)malloc(sizeof(MLE_POLY)* pc->N);

@@ -2,9 +2,10 @@
 #include <math.h>
 #include "mle_poly.h"
 #include "debug_utils.h"
+#include "types.h"
 
 BoolCheckBuilder* bool_check_builder_new(
-    int C_INITIAL_ROUNDS,
+    size_t C_INITIAL_ROUNDS,
     const Points* points,
     Points* claims,
     MLE_POLY_SEQUENCE* polys,
@@ -329,12 +330,14 @@ void boolcheck_bind(BoolCheck* bc, const F128* r) {
 
     // 1. Compute round polynomial, decompress, evaluate at *r, update claim
     CompressedPoly* round_poly = boolcheck_round_polynomial(bc);
-    UnivariatePolynomial* round_poly_coeffs = decompress_poly(round_poly, bc->claim);
+    UnivariatePolynomial* round_poly_coeffs = uncompress_poly(round_poly);
     bc->claim = univariate_polynomial_evaluate_at(round_poly_coeffs, *r);
     // Free temp poly
     free(round_poly_coeffs);
 
-    // 2. Push *r to bc->challenges
+    // bc->challenges->elems[round] = *r;
+
+    // // 2. Push *r to bc->challenges
     points_push(bc->challenges, *r);
 
     // 3. If round <= bc->c_param, phase 1
@@ -381,7 +384,6 @@ void boolcheck_bind(BoolCheck* bc, const F128* r) {
         // polys: bc->polys, n = bc->n_polys
         // challenges: bc->challenges
         // Output length: n_polys * 128 * base_index
-        size_t out_len = 0;
         
         Evaluations* restricted_evals = restrict_polynomials(
             bc->polys->mle_poly,
@@ -394,31 +396,42 @@ void boolcheck_bind(BoolCheck* bc, const F128* r) {
     }
 }
 
-// BoolCheckOutput* boolcheck_finish(BoolCheck* bc) {
-//     // 1. Assert that bc->challenges->len == bc->num_vars
-//     assert(bc->challenges->len == bc->num_vars);
-//     // 2. Allocate BoolCheckOutput* out, compute base_index
-//     size_t base_index = 1UL << (bc->num_vars - bc->c_param - 1);
-//     size_t n_polys = bc->n_polys;
-//     size_t output_size = bc->output_size;
-//     // 3. Populate frob_evals_array of length 128 * output_size
-//     size_t frob_evals_len = 128 * output_size;
-//     F128* frob_evals_array = (F128*)malloc(frob_evals_len * sizeof(F128));
-//     for (size_t idx = 0; idx < frob_evals_len; ++idx) {
-//         size_t poly_idx = idx / 128;
-//         size_t frob_idx = idx % 128;
-//         // poly_coords: [n_polys * 128 * base_index]
-//         frob_evals_array[idx] = bc->poly_coords->elems[(poly_idx * 128 + frob_idx) * base_index];
-//     }
-//     // 4. Call FixedEvaluations* frob_evals = fixed_evaluations_new(frob_evals_array)
-//     FixedEvaluations* frob_evals = fixed_evaluations_new(frob_evals_array, frob_evals_len);
-//     // 5. Call fixed_evaluations_twist(frob_evals)
-//     fixed_evaluations_twist(frob_evals);
-//     // 6. Set out->frob_evals = frob_evals, out->round_polys = bc->round_polys
-//     BoolCheckOutput* out = boolcheck_output_new(frob_evals, bc->round_polys, bc->round_polys_len);
-//     // 7. Return out
-//     return out;
-// }
+BoolCheckOutput* boolcheck_finish(BoolCheck* bc) {
+    // 1. Assert that bc->challenges->len == bc->num_vars
+    assert(bc->challenges->len == bc->num_vars);
+    // 2. Allocate BoolCheckOutput* out, compute base_index
+    size_t base_index = 1UL << (bc->num_vars - bc->c_param - 1);
+    
+    size_t output_size = bc->algebraic_operations->output_size;
+    // 3. Populate frob_evals_array of length 128 * output_size
+    size_t frob_evals_len = 128 * output_size;
+    Evaluations* frob_evals = points_init(frob_evals_len, f128_zero());
+    // F128* frob_evals_array = (F128*)malloc(frob_evals_len * sizeof(F128));
+    for (size_t idx = 0; idx < frob_evals_len; ++idx) {
+        size_t poly_idx = idx / 128;
+        size_t frob_idx = idx % 128;
+        // poly_coords: [n_polys * 128 * base_index]
+        frob_evals->elems[idx] = bc->poly_coords->elems[(poly_idx * 128 + frob_idx) * base_index];
+    }
+
+    twist_evals(frob_evals);
+    BoolCheckOutput* out = malloc(sizeof(BoolCheckOutput));
+    if (out == NULL) {
+        fprintf(stderr, "Failed to allocate memory for BoolCheckOutput\n");
+        points_free(frob_evals);
+        return NULL;
+    }
+    out->frob_evals = frob_evals;
+    out->round_polys = bc->round_polys;
+    if (out->round_polys == NULL) {
+        fprintf(stderr, "Failed to allocate memory for round_polys\n");
+        points_free(frob_evals);
+        free(out);
+        return NULL;
+    }
+    out->round_polys_len = bc->round_polys_len;
+    return out;
+}
 
 // Free the BoolCheckBuilder
 void bool_check_builder_free(BoolCheckBuilder* builder) {

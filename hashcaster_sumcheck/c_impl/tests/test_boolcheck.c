@@ -233,3 +233,61 @@ void test_extend_n_tables(void) {
     mle_sequence_free(polys);
     bool_check_builder_free(builder);
 }
+
+void test_new_andcheck1(void) {
+    const size_t PHASE_SWITCH = 5;
+    const size_t num_vars = 20;
+
+    Points * points = points_init(num_vars, f128_zero());
+    for (size_t i = 0; i < num_vars; ++i) {
+        points->elems[i] = f128_rand();
+    }
+
+    MLE_POLY* p = mle_poly_random(1 << num_vars);
+    MLE_POLY* q = mle_poly_random(1 << num_vars);
+    MLE_POLY* pq = mle_poly_from_constant(1 << num_vars, f128_zero());
+    for (size_t i = 0; i < (1 << num_vars); ++i) {
+        pq->coeffs[i] = f128_bitand(p->coeffs[i], q->coeffs[i] );
+    }
+    F128 initial_claim = mle_poly_evaluate_at(pq, points);
+
+    F128 gamma = f128_rand();
+    MLE_POLY polys[2] = { p, q };
+    Algebraic_Params dummy_params;
+    dummy_params.input_size = 2;
+    dummy_params.output_size = 1;
+    Algebraic_Functions dummy_funcs;
+    dummy_funcs.algebraic = test_package_algebraic;
+    dummy_funcs.linear = test_package_linear;
+    dummy_funcs.quadratic = test_package_quadratic;
+    // BoolCheckBuilder *builder = boolcheck_builder_new(&AndPackage, &points, &initial_claim, polys, PHASE_SWITCH);
+    //     size_t C_INITIAL_ROUNDS,
+    // const Points* points,
+    // Points* claims,
+    // MLE_POLY_SEQUENCE* polys,
+    // const Algebraic_Params* algebraic_params,
+    // const Algebraic_Functions* algebraic_functions
+
+    BoolCheckBuilder *builder = bool_check_builder_new(
+        PHASE_SWITCH, points, &initial_claim, polys, &dummy_params, &dummy_funcs);
+
+    // F128 current_claim = initial_claim;
+    // Points challenges = points_default();
+
+    for (size_t i = 0; i < num_vars; ++i) {
+        CompressedPoly *round_poly = boolcheck_round_polynomial(builder);
+        F128 r = f128_rand();
+        UnivariatePolynomial* coeffs = uncompress_poly(round_poly);
+        // current_claim = fixed_univar_evaluate(&coeffs, r);
+        F128 current_claim = univariate_polynomial_evaluate_at(coeffs, r);
+        boolcheck_bind(&boolcheck, &r);
+        points_push(&challenges, r);
+    }
+
+    BoolCheckOutput out = boolcheck_finish(&boolcheck);
+    fixed_evals_untwist(&out.frob_evals);
+    F128 expected = and_package_algebraic(&out.frob_evals, 0, 1)[0];
+    expected = f128_mul(expected, points_eq_eval(&points, &challenges));
+
+    TEST_ASSERT_TRUE(f128_eq(current_claim, expected));
+}
