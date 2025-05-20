@@ -149,7 +149,7 @@ void test_coeffs_reconstruction_standard_case(void)
     CompressedPoly* cr= compress_poly(poly);
 
     // reconstruct
-    UnivariatePolynomial* reconstructed= uncompress_poly(cr);
+    UnivariatePolynomial* reconstructed= uncompress_poly(cr, cr->sum);
 
     // build "original" polynomial
     // UnivariatePolynomial original= UnivariatePolynomial_new(poly);
@@ -183,7 +183,7 @@ void test_coeffs_all_zero_coefficients(void)
 
     CompressedPoly* cr= compress_poly(poly);
 
-    UnivariatePolynomial* reconstructed= uncompress_poly(cr);
+    UnivariatePolynomial* reconstructed= uncompress_poly(cr, cr->sum);
 
     for (int i=0;i<N;i++){
         // check if reconstructed[i] == original[i]
@@ -214,7 +214,7 @@ void test_coeffs_large_coefficients(void)
     }
     // compress
     CompressedPoly* cr= compress_poly(poly);
-    UnivariatePolynomial* reconstructed= uncompress_poly(cr);
+    UnivariatePolynomial* reconstructed= uncompress_poly(cr, cr->sum);
 
     for (int i=0;i<N;i++){
         // check if reconstructed[i] == original[i]

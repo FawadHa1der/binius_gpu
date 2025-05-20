@@ -265,7 +265,7 @@ void test_multiclaim_complete(void) {
     for (size_t round = 0; round < NUM_VARS; ++round) {
         // Get round polynomial
         CompressedPoly* round_poly = prodcheck_round_polynomial(prover->object);
-        UnivariatePolynomial* uncompressed_round_poly = uncompress_poly(round_poly);
+        UnivariatePolynomial* uncompressed_round_poly = uncompress_poly(round_poly, claim);
 
         // Check that it has 3 coefficients
         TEST_ASSERT_EQUAL_UINT(3, uncompressed_round_poly->len);

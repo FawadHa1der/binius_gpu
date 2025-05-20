@@ -625,7 +625,7 @@ void test_prodcheck_full(void)
         F128 challenge= f128_rand(); // or f128_from_uint64(round+1)...
 
         // Decompress => c_0,c_1,c_2
-        UnivariatePolynomial* uncompressed_round_poly = uncompress_poly(compressed_round_poly);
+        UnivariatePolynomial* uncompressed_round_poly = uncompress_poly(compressed_round_poly, current_claim);
 
         // new claim => c0 + r*c1 + r^2*c2
         // let r_sq= r*r

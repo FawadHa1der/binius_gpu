@@ -51,13 +51,13 @@ CompressedPoly* compress_poly(const Points* poly)
 
 // returns a "UnivariatePolynomial".
 UnivariatePolynomial* uncompress_poly(
-    const CompressedPoly* compressed_poly )
+    const CompressedPoly* compressed_poly, F128 sum )
 {
     // step 1) c0= compressed_poly->compressed_coeff->elems[0]
     F128 c0= compressed_poly->compressed_coeff->elems[0];
 
     // step 2) ev_1= c0 + sum
-    F128 ev_1= f128_add(c0, compressed_poly->sum);
+    F128 ev_1= f128_add(c0, sum);
 
     // step 3) c1= (sum of all stored in compressed_poly->compressed_coeff->elems) + ev_1
     //   self.iter().fold(ZERO, |a,b| a+b) => sum all compressed_poly->compressed_coeff->elems

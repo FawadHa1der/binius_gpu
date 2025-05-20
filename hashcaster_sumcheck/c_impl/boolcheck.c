@@ -148,7 +148,7 @@ void algebraic_compressed(
     }
 }
 
-F128* extend_n_tables(
+Points* extend_n_tables(
     const MLE_POLY_SEQUENCE* polys,  // array of N pointers to F128 arrays
     size_t N,
     size_t dims,
@@ -177,14 +177,17 @@ F128* extend_n_tables(
     size_t pow2 = 1 << (dims - C - 1);
     size_t base_stride = 1 << (C + 1);
 
-    F128* result = malloc(sizeof(F128) * pow3 * pow2);
+    //F128* result = malloc(sizeof(F128) * pow3 * pow2);
+    Points* result = points_init(pow3 * pow2, f128_zero());
+
+
     assert(result != NULL);
 
     for (size_t chunk_id = 0; chunk_id < pow2; ++chunk_id) {
         F128 tables_ext[pow3_adj][N];
 
         size_t base_tab_offset = chunk_id * base_stride;
-        F128* result_chunk = &result[chunk_id * pow3];
+        F128* result_chunk = &result->elems[chunk_id * pow3];
 
         for (size_t j = 0; j < pow3; ++j) {
             size_t offset = trit_mapping[j];
@@ -238,6 +241,77 @@ F128* extend_n_tables(
 
         }
     }
+
+    return result;
+}
+
+
+// Implements the logic of SumcheckBuilder::build for BoolCheckBuilder.
+BoolCheck* boolcheck_new(
+    BoolCheckBuilder* builder,
+    const F128 gamma 
+) {
+    // 1. Compute gammas from gamma (using initial_claim as gamma here)
+    // For test, we use initial_claim as the gamma input.
+    // compute_gammas_folding fills builder->gammas with folding challenges.
+    builder->gammas = compute_gammas_folding(gamma, builder->algebraic_operations->output_size);
+
+    // 2. Ensure all polynomials have same length = 2^num_vars
+    size_t expected_len = 1ULL << builder->points->len;
+    for (size_t i = 0; i < builder->polys->len; ++i) {
+        assert(expected_len == builder->polys->mle_poly[i].len);
+    }
+
+    // 3. Generate bit and trit mappings
+    uint16_t* bit_mapping = NULL;
+    uint16_t* trit_mapping = NULL;
+    size_t bit_len = 0, trit_len = 0;
+    compute_trit_mappings(builder->c_initial_rounds, &bit_mapping, &bit_len, &trit_mapping, &trit_len);
+
+    // 4. Generate eq_sequence (offset by 1)
+    Points* points_off_by_one = points_init(builder->points->len - 1, f128_zero());
+    for (size_t i = 0; i < points_off_by_one->len; ++i) {
+        points_off_by_one->elems[i] = builder->points->elems[i + 1];
+    } // nbot sure why its off by one?
+
+    MLE_POLY_SEQUENCE* eq_sequence = points_to_eq_poly_sequence(
+        points_off_by_one   );
+
+    // 5. Compute compressed claim using FixedUnivariatePolynomial
+    // Use builder->claims and builder->gammas->elems[0] as evaluation point
+    F128 claim =   univariate_polynomial_evaluate_at (builder->claims, gamma);
+
+    // 6. Extend tables
+    Points* extended_table = extend_n_tables(
+        builder->polys, builder->polys->len, builder->points->len, builder->c_initial_rounds,
+        trit_mapping, builder, linear_compressed, quadratic_compressed
+    );
+
+    // 7. Allocate and return BoolCheck
+    BoolCheck* result = (BoolCheck*) malloc(sizeof(BoolCheck));
+    result->bit_mapping = bit_mapping;
+    result->bit_mapping_len = bit_len;
+    // result->bit_len = bit_len;
+    result->eq_sequence = eq_sequence;
+    result->claim = claim;
+    result->extended_table =  extended_table;
+    result->polys = builder->polys;
+    result->points = builder->points;
+    result->gammas = builder->gammas;
+    result->algebraic_operations = builder->algebraic_operations;
+    result->algebraic_functions = builder->algebraic_functions;
+    result->poly_coords = points_init(0, f128_zero());
+    result->challenges = points_init(0, f128_zero());
+    result->round_polys = malloc(sizeof(CompressedPoly) * builder->points->len);
+    if (result->round_polys == NULL) {
+        fprintf(stderr, "Failed to allocate memory for round_polys\n");
+        free(result);
+        return NULL;
+    }
+    result->round_polys_len = 0;
+    result->num_vars = builder->points->len;
+    result->c_param = builder->c_initial_rounds;
+    // result->bit_mapping = bit_mapping;
 
     return result;
 }
@@ -315,8 +389,8 @@ CompressedPoly* boolcheck_round_polynomial(BoolCheck* bc) {
 
     CompressedPoly* cp = compress_poly(result);
     // F128 computed_claim = evaluate_univariate(&cp, bc->claim);
-    F128 computed_claim = univariate_polynomial_evaluate_at(result, bc->claim);
-    assert(f128_eq(computed_claim, bc->claim));
+    // F128 computed_claim = univariate_polynomial_evaluate_at(result, bc->claim);
+    assert(f128_eq(cp->sum, bc->claim));
 
     bc->round_polys[round] = *cp; // TODO clean this up, not sure this is the best approach
     bc->round_polys_len++;
@@ -330,7 +404,7 @@ void boolcheck_bind(BoolCheck* bc, const F128* r) {
 
     // 1. Compute round polynomial, decompress, evaluate at *r, update claim
     CompressedPoly* round_poly = boolcheck_round_polynomial(bc);
-    UnivariatePolynomial* round_poly_coeffs = uncompress_poly(round_poly);
+    UnivariatePolynomial* round_poly_coeffs = uncompress_poly(round_poly, bc->claim );
     bc->claim = univariate_polynomial_evaluate_at(round_poly_coeffs, *r);
     // Free temp poly
     free(round_poly_coeffs);

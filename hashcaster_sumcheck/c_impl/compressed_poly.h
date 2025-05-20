@@ -17,7 +17,7 @@ typedef struct{
 
 
 UnivariatePolynomial* uncompress_poly(
-    const CompressedPoly* compressed_poly );
+    const CompressedPoly* compressed_poly, F128 sum );
 CompressedPoly* compress_poly(const Points* poly);
 
 

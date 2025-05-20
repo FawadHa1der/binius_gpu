@@ -106,7 +106,7 @@ void bool_check_builder_free(BoolCheckBuilder* builder) ;
 void compute_trit_mappings(size_t c_rounds, uint16_t** bit_mapping_out, size_t* bit_len,
                            uint16_t** trit_mapping_out, size_t* trit_len);
 
-F128* extend_n_tables(
+Points* extend_n_tables(
     const MLE_POLY_SEQUENCE* polys,  // array of N pointers to F128 arrays
     size_t N,
     size_t dims,
@@ -151,9 +151,13 @@ void algebraic_compressed(
     F128 result[3]
 ) ;
 
+BoolCheck* boolcheck_new(
+    BoolCheckBuilder* builder,
+    const F128 gamma 
+);
 
 CompressedPoly* boolcheck_round_polynomial(BoolCheck* bc) ;
 void boolcheck_bind(BoolCheck* bc, const F128* r);
 BoolCheckOutput* boolcheck_finish(BoolCheck* bc);
-void bool_check_builder_free(BoolCheckBuilder* builder)
+void bool_check_builder_free(BoolCheckBuilder* builder);
 #endif

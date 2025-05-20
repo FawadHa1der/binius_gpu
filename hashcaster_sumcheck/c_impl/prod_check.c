@@ -193,7 +193,7 @@ void prodcheck_bind(ProdCheck* pc, F128 r)
 
     // first retrieve the "round_poly" => do the same logic as above
     CompressedPoly* cp = prodcheck_round_polynomial(pc);
-    UnivariatePolynomial* poly = uncompress_poly(cp);
+    UnivariatePolynomial* poly = uncompress_poly(cp, pc->claim);
     F128 new_claim = univariate_polynomial_evaluate_at(poly, r);
 
     pc->claim= new_claim;

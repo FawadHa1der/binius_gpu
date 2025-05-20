@@ -11,4 +11,5 @@ void test_trit_mapping_medium_c(void) ;
 void test_trit_mapping_large_c(void) ;
 void test_trit_mapping_no_c(void) ;
 void test_extend_n_tables(void) ;
+void test_new_andcheck1(void) ;
 #endif
