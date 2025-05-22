@@ -169,7 +169,7 @@ int main(void)
     RUN_TEST(test_trit_mapping_medium_c);
     RUN_TEST(test_trit_mapping_large_c);
     RUN_TEST(test_trit_mapping_no_c);
-    RUN_TEST(test_extend_n_tables);
+   RUN_TEST(test_extend_n_tables);
     RUN_TEST(test_new_andcheck1);
 
     

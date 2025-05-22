@@ -240,13 +240,13 @@ void test_new_andcheck1(void) {
 
     Points * points = points_init(num_vars, f128_zero());
     for (size_t i = 0; i < num_vars; ++i) {
-        points->elems[i] = f128_rand();
+        points->elems[i] = f128_from_uint64(i);
     }
 
     MLE_POLY_SEQUENCE* polys = mle_sequence_new(2, 1 << num_vars, f128_zero());
     for (size_t i = 0; i < 2; ++i) {
         for (size_t j = 0; j < (1 << num_vars); ++j) {
-            polys->mle_poly[i].coeffs[j] = f128_rand();
+            polys->mle_poly[i].coeffs[j] = f128_from_uint64(1);
         }
     }
 
@@ -256,9 +256,10 @@ void test_new_andcheck1(void) {
     for (size_t i = 0; i < (1 << num_vars); ++i) {
         pq->coeffs[i] = f128_bitand(p->coeffs[i], q->coeffs[i] );
     }
+
     F128 initial_claim = mle_poly_evaluate_at(pq, points);
     F128 current_claim = initial_claim;
-    F128 gamma = f128_rand();
+    F128 gamma = f128_from_uint64(10);
     Points* challenges = points_init(0, f128_zero());
 
     Algebraic_Params dummy_params;
@@ -266,9 +267,9 @@ void test_new_andcheck1(void) {
     dummy_params.output_size = 1;
 
     Algebraic_Functions dummy_funcs;
-    dummy_funcs.algebraic = test_package_algebraic;
-    dummy_funcs.linear = test_package_linear;
-    dummy_funcs.quadratic = test_package_quadratic;
+    dummy_funcs.algebraic = and_package_algebraic;
+    dummy_funcs.linear = and_package_linear;
+    dummy_funcs.quadratic = and_package_quadratic;
 
     BoolCheckBuilder *builder = bool_check_builder_new(
         PHASE_SWITCH, points, points_init(1, initial_claim) , polys, &dummy_params, &dummy_funcs);
@@ -287,7 +288,11 @@ void test_new_andcheck1(void) {
     BoolCheckOutput *out = boolcheck_finish(boolcheck);
     untwist_evals(out->frob_evals);
 
-    F128 and_algebraic_output[3][1];
+    F128* and_algebraic_output[3];
+    for (int i = 0; i < 3; i++) {
+        and_algebraic_output[i] = (F128*)malloc(sizeof(F128) * 1);
+        and_algebraic_output[i][0] = f128_zero();
+    }
     and_package_algebraic(
         &dummy_params, out->frob_evals, 0, 1, and_algebraic_output
     );

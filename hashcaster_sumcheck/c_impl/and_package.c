@@ -71,5 +71,7 @@ void and_package_quadratic(
     const Points* data,
     Points* out
 ) {
-    out->elems[0] = f128_bitand(data->elems[0], data->elems[1]);
+    for (size_t i = 0; i < params->output_size; i++) {
+        out->elems[i] = f128_bitand(data->elems[0], data->elems[1]);
+    }
 }

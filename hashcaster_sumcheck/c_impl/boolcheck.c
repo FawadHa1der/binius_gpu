@@ -180,9 +180,7 @@ Points* extend_n_tables(
     //F128* result = malloc(sizeof(F128) * pow3 * pow2);
     Points* result = points_init(pow3 * pow2, f128_zero());
 
-
     assert(result != NULL);
-
     for (size_t chunk_id = 0; chunk_id < pow2; ++chunk_id) {
         F128 tables_ext[pow3_adj][N];
 
@@ -275,7 +273,7 @@ BoolCheck* boolcheck_new(
     } // nbot sure why its off by one?
 
     MLE_POLY_SEQUENCE* eq_sequence = points_to_eq_poly_sequence(
-        points_off_by_one   );
+        points_off_by_one);
 
     // 5. Compute compressed claim using FixedUnivariatePolynomial
     // Use builder->claims and builder->gammas->elems[0] as evaluation point
@@ -371,10 +369,11 @@ CompressedPoly* boolcheck_round_polynomial(BoolCheck* bc) {
     F128 eq_y = eq_eval(bc->points->elems, bc->challenges->elems, round);
     
     // F128 eq_y = points_eq_eval_slice(&bc->challenges, bc->points, round);
-
+    UnivariatePolynomial* univariate_poly_eval = from_evaluations_deg2(poly_deg2);
+    
     // V(t) = W(t) * eq(r_<i>; q)
     for (int i = 0; i < 3; i++) {
-        poly_deg2->elems[i] = f128_mul(poly_deg2->elems[i], eq_y);
+        poly_deg2->elems[i] = f128_mul(univariate_poly_eval->elems[i], eq_y);
     }
 
     // F128 eq_t[2] = {
@@ -476,7 +475,7 @@ BoolCheckOutput* boolcheck_finish(BoolCheck* bc) {
     // 2. Allocate BoolCheckOutput* out, compute base_index
     size_t base_index = 1UL << (bc->num_vars - bc->c_param - 1);
     
-    size_t output_size = bc->algebraic_operations->output_size;
+    size_t output_size = bc->algebraic_operations->input_size; // or number of polynomials
     // 3. Populate frob_evals_array of length 128 * output_size
     size_t frob_evals_len = 128 * output_size;
     Evaluations* frob_evals = points_init(frob_evals_len, f128_zero());
