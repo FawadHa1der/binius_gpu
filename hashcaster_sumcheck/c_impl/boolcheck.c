@@ -111,8 +111,6 @@ F128 quadratic_compressed(
 ) {
     //F128 quad[M];
     Points* quad = points_init(params->output_size, f128_zero());
-
-    
     alg_funcs->quadratic(params, arg, quad);  // quadratic() fills quad[params->output_size]
 
     F128 acc = f128_zero();
@@ -516,4 +514,26 @@ void bool_check_builder_free(BoolCheckBuilder* builder) {
     points_free(builder->claims);
     mle_sequence_free(builder->polys);
     free(builder);
+}
+
+void boolcheck_free(BoolCheck* bc) {
+    if (bc == NULL) {
+        return;
+    }
+    free(bc->bit_mapping);
+    mle_sequence_free(bc->eq_sequence);
+    points_free(bc->extended_table);
+    // points_free(bc->points);
+    points_free(bc->gammas);
+    points_free(bc->poly_coords);
+    points_free(bc->challenges);
+    free(bc->round_polys);
+    free(bc);
+}
+void boolcheck_output_free(BoolCheckOutput* out) {
+    if (out == NULL) {
+        return;
+    }
+    points_free(out->frob_evals);
+    free(out);
 }

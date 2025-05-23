@@ -199,3 +199,12 @@ void multi_claim_free(MultiClaim *mc) {
     free(mc);
 }
 
+void multi_claim_builder_free(MulticlaimBuilder *builder) {
+    if (builder == NULL) {
+        return;
+    }
+    points_free(builder->points);
+    points_free(builder->openings);
+    free(builder);
+}
+

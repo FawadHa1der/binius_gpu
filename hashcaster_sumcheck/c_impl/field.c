@@ -6,6 +6,7 @@
 #include <time.h>
 #include <arm_neon.h>
 #include "gf128_polyval.h"
+#include "math.h"
 
 const uint8_t EXP_TABLE[256] = {
     0x1,  0x13, 0x43, 0x66, 0xab, 0x8c, 0x60, 0xc6, 0x91, 0xca, 0x59, 0xb2, 0x6a, 0x63, 0xf4, 0x53,
@@ -253,12 +254,14 @@ F128 f128_bitxor(const F128 a, const F128 b){
     result.high = a.high ^ b.high;
     return result;
 }
+
 F128 f128_bitnot(const F128 a){
     F128 result;
     result.low = ~a.low;
     result.high = ~a.high;
     return result;
 }
+
 F128 f128_bitor(const F128 a, const F128 b){
     F128 result;
     result.low = a.low | b.low;
@@ -284,5 +287,22 @@ F128 f128_shr(F128 x, uint32_t shift) {
         result.high = 0;
     }
 
+    return result;
+}
+
+F128 f128_pow(const F128 x, int exp){
+    // Ensure that the exponent is a power of 2, as required by this implementation.
+    assert((exp & (exp - 1)) == 0 ); // , "Exponent must be a power of 2."
+
+    // Initialize the result with the base element.
+    F128 result = x;
+
+    // Perform repeated squaring based on the number of times we need to double.
+    // The number of doublings is given by the base-2 logarithm of the exponent.
+    for (int i = 0; i < (int)log2(exp); i++) {
+        result = f128_mul(result, result); // Square the current result.
+    }
+
+    // Return the final computed power.
     return result;
 }

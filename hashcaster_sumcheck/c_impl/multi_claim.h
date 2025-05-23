@@ -49,4 +49,5 @@ Evaluations* multi_claim_finish(MultiClaim *mc);
 
 
 void multi_claim_free(MultiClaim *mc) ;
+void multi_claim_builder_free(MulticlaimBuilder *builder);
 #endif

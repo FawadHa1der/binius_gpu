@@ -1,5 +1,7 @@
 #include "test_boolcheck.h"
 #include "unity.h"
+#include "time.h"
+#include "../multi_claim.h"
 
 
 void test_trit_mapping_small_c(void) {
@@ -303,4 +305,164 @@ void test_new_andcheck1(void) {
     TEST_ASSERT_TRUE(f128_eq(current_claim, expected));
 }
 
+void test_new_andcheck_with_multiclaim(void) {
+    const size_t PHASE_SWITCH = 5;
+    const size_t num_vars = 20;
 
+    // Setup random points
+    Points *points = points_init(num_vars, f128_zero());
+    for (size_t i = 0; i < num_vars; ++i) {
+        points->elems[i] = f128_from_uint64(i);
+    }
+
+    // Generate two random multilinear polynomials p and q
+    MLE_POLY_SEQUENCE* polys = mle_sequence_new(2, 1 << num_vars, f128_zero());
+    for (size_t i = 0; i < 2; ++i) {
+        for (size_t j = 0; j < (1 << num_vars); ++j) {
+            polys->mle_poly[i].coeffs[j] = f128_from_uint64(1);
+        }
+    }
+    MLE_POLY* p = &polys->mle_poly[0];
+    MLE_POLY* q = &polys->mle_poly[1];
+
+    // Compute their AND
+    MLE_POLY* pq = mle_poly_from_constant(1 << num_vars, f128_zero());
+    for (size_t i = 0; i < (1 << num_vars); ++i) {
+        pq->coeffs[i] = f128_bitand(p->coeffs[i], q->coeffs[i]);
+    }
+
+    // Evaluate AND at points to get initial_claim
+    F128 initial_claim = mle_poly_evaluate_at(pq, points);
+    F128 current_claim = initial_claim;
+    Points* challenges = points_init(0, f128_zero());
+
+    // Setup algebraic package
+    Algebraic_Params and_params;
+    and_params.input_size = 2;
+    and_params.output_size = 1;
+    Algebraic_Functions and_funcs;
+    and_funcs.algebraic = and_package_algebraic;
+    and_funcs.linear = and_package_linear;
+    and_funcs.quadratic = and_package_quadratic;
+
+    // Setup random gamma
+    F128 gamma = f128_from_uint64(10);
+
+    // Setup BoolCheckBuilder and BoolCheck
+    BoolCheckBuilder *builder = bool_check_builder_new(
+        PHASE_SWITCH, points, points_init(1, initial_claim), polys, &and_params, &and_funcs);
+    BoolCheck *boolcheck = boolcheck_new(builder, gamma);
+
+    // Timing
+    clock_t t_start = clock();
+
+    // Main boolcheck rounds
+    for (size_t i = 0; i < num_vars; ++i) {
+        CompressedPoly *round_poly = boolcheck_round_polynomial(boolcheck);
+        F128 r = f128_from_uint64(i);
+        UnivariatePolynomial* coeffs = uncompress_poly(round_poly, current_claim);
+        current_claim = univariate_polynomial_evaluate_at(coeffs, r);
+        boolcheck_bind(boolcheck, &r);
+        points_push(challenges, r);
+        free(coeffs);
+    }
+
+    BoolCheckOutput *out = boolcheck_finish(boolcheck);
+    Evaluations* frob_evals_copy = points_copy( out->frob_evals);
+
+    // Untwist the output Frobenius evaluations
+    untwist_evals(frob_evals_copy);
+
+    // Compute expected value using and_package_algebraic
+    F128* and_algebraic_output[3];
+    for (int i = 0; i < 3; i++) {
+        and_algebraic_output[i] = (F128*)malloc(sizeof(F128) * 1);
+        and_algebraic_output[i][0] = f128_zero();
+    }
+    and_package_algebraic(&and_params, frob_evals_copy, 0, 1, and_algebraic_output);
+    F128 expected = and_algebraic_output[0][0];
+    expected = f128_mul(expected, points_eq_eval(points, challenges));
+
+    TEST_ASSERT_TRUE(f128_eq(current_claim, expected));
+
+    //////////////////////////////MULTI CALIM //////////////////////////////////////
+    
+    Points* challenges_copy = points_copy(challenges);
+    INVERSE_ORBIT_POINTS* points_inv_orbit = to_f128_inv_orbit(challenges_copy);
+
+    // Print timing
+    printf("Execution time of Boolcheck: %ld ms\n", (clock() - t_start) * 1000 / CLOCKS_PER_SEC);
+
+    // --- Multiclaim part ---
+    t_start = clock();
+    
+    
+    MulticlaimBuilder* prover_builder = multiclaim_builder_new(polys, challenges_copy, out->frob_evals);
+
+    // // Setup multiclaim builder with p, q, and the Frobenius evaluations from BoolCheck
+    // MulticlaimBuilder* multiclaim_builder = multiclaim_builder_new(
+    // );
+
+    // New gamma for folding
+    F128 gamma2 = f128_from_uint64(20);
+    F128 gamma128 = f128_pow(gamma2, 128);
+
+
+    MultiClaim* multiclaim_prover = multiclaim_builder_build(prover_builder, gamma2);
+    // Compute the claim as evaluation of frob_evals at gamma2
+    Points* first_elem_frob_evals = points_init(1, out->frob_evals->elems[0]);
+    F128 claim =  univariate_polynomial_evaluate_at(first_elem_frob_evals, gamma2);
+    Points* multiclaim_challenges = points_init(0, f128_zero());
+
+    for (size_t i = 0; i < num_vars; ++i) {
+        CompressedPoly* round_poly =  prodcheck_round_polynomial(multiclaim_prover->object);
+        UnivariatePolynomial* coeffs = uncompress_poly(round_poly, claim);
+        F128 challenge = f128_from_uint64(i);
+        claim = univariate_polynomial_evaluate_at(coeffs, challenge);
+        points_push(multiclaim_challenges, challenge);
+
+        multi_claim_bind(multiclaim_prover, challenge);
+        free(coeffs);
+    }
+
+    Evaluations* multi_claim_finish_evaluations = multi_claim_finish(multiclaim_prover);
+
+    // Finish multiclaim
+    // Points* eq_evals_pts[128];
+    Points* eq_evals_pts = points_init(128, f128_zero());
+    for (size_t i = 0; i < 128; ++i) {
+        // eq_evals_pts->elems[j] = multiclaim_challenges->elems[j];
+        eq_evals_pts->elems[i] = points_eq_eval(&points_inv_orbit->array_of_points[i], multiclaim_challenges);
+    }
+    // Compute eq_evaluations at gamma2
+    F128 eq_evaluation = univariate_polynomial_evaluate_at(eq_evals_pts, gamma2);
+
+    // Validate the claim
+    F128 output_eval = univariate_polynomial_evaluate_at(multi_claim_finish_evaluations, gamma128);
+    F128 check = f128_mul(output_eval, eq_evaluation);
+    TEST_ASSERT_TRUE(f128_eq(check, claim));
+
+    // Check that p and q evaluated at challenges match the outputs
+    F128 p_eval = mle_poly_evaluate_at(p, multiclaim_challenges);
+    F128 q_eval = mle_poly_evaluate_at(q, multiclaim_challenges);
+
+    TEST_ASSERT_TRUE(f128_eq(p_eval, multi_claim_finish_evaluations->elems[0]));
+    TEST_ASSERT_TRUE(f128_eq(q_eval, multi_claim_finish_evaluations->elems[1]));
+
+    printf("Execution time of Multiclaim: %ld ms\n", (clock() - t_start) * 1000 / CLOCKS_PER_SEC);
+
+    // Cleanup
+    for (int i = 0; i < 3; i++) free(and_algebraic_output[i]);
+    points_free(points);
+    points_free(challenges);
+    points_free(challenges_copy);
+    points_free(multiclaim_challenges);
+    points_free(eq_evals_pts);
+    mle_sequence_free(polys);
+    mle_poly_free(pq);
+    bool_check_builder_free(builder);
+    // boolcheck_free(boolcheck);
+    boolcheck_output_free(out);
+    // multi_claim_builder_free(prover_builder);
+    // multi_claim_free(multiclaim_prover);
+}

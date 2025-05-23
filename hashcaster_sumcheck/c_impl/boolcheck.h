@@ -160,4 +160,6 @@ CompressedPoly* boolcheck_round_polynomial(BoolCheck* bc) ;
 void boolcheck_bind(BoolCheck* bc, const F128* r);
 BoolCheckOutput* boolcheck_finish(BoolCheck* bc);
 void bool_check_builder_free(BoolCheckBuilder* builder);
+void boolcheck_free(BoolCheck* bc);
+void boolcheck_output_free(BoolCheckOutput* out);
 #endif

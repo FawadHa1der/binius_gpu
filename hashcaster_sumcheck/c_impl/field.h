@@ -285,5 +285,7 @@ F128 f128_bitxor(const F128 a, const F128 b);
 F128 f128_bitnot(const F128 a);
 F128 f128_bitor(const F128 a, const F128 b);
 
+F128 f128_pow(const F128 x, int exp);
+
 
 #endif // F128_H
