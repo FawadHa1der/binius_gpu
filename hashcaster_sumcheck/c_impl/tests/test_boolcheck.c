@@ -240,13 +240,13 @@ void test_new_andcheck1(void) {
 
     Points * points = points_init(num_vars, f128_zero());
     for (size_t i = 0; i < num_vars; ++i) {
-        points->elems[i] = f128_from_uint64(i);
+        points->elems[i] = f128_rand();
     }
 
     MLE_POLY_SEQUENCE* polys = mle_sequence_new(2, 1 << num_vars, f128_zero());
     for (size_t i = 0; i < 2; ++i) {
         for (size_t j = 0; j < (1 << num_vars); ++j) {
-            polys->mle_poly[i].coeffs[j] = f128_from_uint64(1);
+            polys->mle_poly[i].coeffs[j] = f128_rand();
         }
     }
 
@@ -259,7 +259,7 @@ void test_new_andcheck1(void) {
 
     F128 initial_claim = mle_poly_evaluate_at(pq, points);
     F128 current_claim = initial_claim;
-    F128 gamma = f128_from_uint64(10);
+    F128 gamma = f128_rand();
     Points* challenges = points_init(0, f128_zero());
 
     Algebraic_Params dummy_params;
@@ -302,3 +302,5 @@ void test_new_andcheck1(void) {
 
     TEST_ASSERT_TRUE(f128_eq(current_claim, expected));
 }
+
+
