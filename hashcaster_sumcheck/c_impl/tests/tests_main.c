@@ -173,6 +173,11 @@ int main(void)
     RUN_TEST(test_new_andcheck1);
     RUN_TEST(test_new_andcheck_with_multiclaim);
     RUN_TEST(test_compute_imaginary_rounds);
+    RUN_TEST(test_compute_round_polynomial_cached_result);
+    RUN_TEST(test_compute_round_polynomial_initial_round);
+    RUN_TEST(test_compute_round_polynomial_exceeds_round_limit);
+    RUN_TEST(test_compute_round_polynomial_invalid_claim);
+    RUN_TEST(test_compute_round_polynomial_correct_claim_update);
 
     
 

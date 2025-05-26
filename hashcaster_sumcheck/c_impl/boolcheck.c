@@ -524,7 +524,7 @@ void boolcheck_free(BoolCheck* bc) {
     mle_sequence_free(bc->eq_sequence);
     points_free(bc->extended_table);
     // points_free(bc->points);
-    points_free(bc->gammas);
+    // points_free(bc->gammas); // freed in the builder
     points_free(bc->poly_coords);
     points_free(bc->challenges);
     free(bc->round_polys);

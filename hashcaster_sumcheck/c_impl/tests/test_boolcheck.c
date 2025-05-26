@@ -653,3 +653,359 @@ void test_compute_imaginary_rounds(void) {
     boolcheck_free(boolcheck);
     free(round_poly);
 }
+
+
+void test_compute_round_polynomial_cached_result(void) {
+    const size_t PHASE_SWITCH = 1;
+
+    // Points: [1, 2]
+    Points *points = points_init(2, f128_zero());
+    points->elems[0] = f128_from_uint64(1);
+    points->elems[1] = f128_from_uint64(2);
+
+    // Polynomials p = [11, 22, 33, 44]
+    //            q = [111, 222, 333, 444]
+    MLE_POLY_SEQUENCE *polys = mle_sequence_new(2, 4, f128_zero());
+    for (int i = 0; i < 4; ++i) {
+        polys->mle_poly[0].coeffs[i] = f128_from_uint64(11 * (i + 1));
+        polys->mle_poly[1].coeffs[i] = f128_from_uint64(111 * (i + 1));
+    }
+
+    // Compute p & q
+    MLE_POLY *p = &polys->mle_poly[0];
+    MLE_POLY *q = &polys->mle_poly[1];
+    MLE_POLY *p_and_q = mle_poly_from_constant(4, f128_zero());
+    for (int i = 0; i < 4; ++i) {
+        p_and_q->coeffs[i] = f128_bitand(p->coeffs[i], q->coeffs[i]);
+    }
+
+    // Compute initial claim
+    F128 initial_claim = mle_poly_evaluate_at(p_and_q, points);
+
+    // Setup algebraic package
+    Algebraic_Params dummy_params = { .input_size = 2, .output_size = 1 };
+    Algebraic_Functions dummy_funcs = {
+        .algebraic = and_package_algebraic,
+        .linear = and_package_linear,
+        .quadratic = and_package_quadratic
+    };
+
+    F128 gamma = f128_from_uint64(1234);
+    BoolCheckBuilder *builder = bool_check_builder_new(PHASE_SWITCH, points,
+        points_init(1, initial_claim), polys, &dummy_params, &dummy_funcs);
+
+    BoolCheck *check = boolcheck_new(builder, gamma);
+
+    // Push a cached polynomial [1, 2, 3] into check->round_polys
+    CompressedPoly *cached = malloc (sizeof(CompressedPoly));
+    cached->compressed_coeff = points_init(3, f128_zero());
+    cached->compressed_coeff->len = 3;
+    cached->compressed_coeff->elems[0] = f128_from_uint64(1);
+    cached->compressed_coeff->elems[1] = f128_from_uint64(2);
+    cached->compressed_coeff->elems[2] = f128_from_uint64(3);
+    check->round_polys[check->round_polys_len] = *cached;
+    check->round_polys_len += 1; // Set length to 1 since we added one cached polynomial
+    // vec_push(check->round_polys, *cached);
+
+    // Call boolcheck_round_polynomial, should return cached
+    CompressedPoly *computed = boolcheck_round_polynomial(check);
+    TEST_ASSERT_TRUE(f128_eq(computed->compressed_coeff->elems[0], cached->compressed_coeff->elems[0]));
+    TEST_ASSERT_TRUE(f128_eq(computed->compressed_coeff->elems[1], cached->compressed_coeff->elems[1]));
+    TEST_ASSERT_TRUE(f128_eq(computed->compressed_coeff->elems[2], cached->compressed_coeff->elems[2]));
+
+    // Assert round_polys count is still 1
+    TEST_ASSERT_EQUAL_UINT(1, check->round_polys_len);
+
+    // Cleanup
+    mle_poly_free(p_and_q);
+    mle_sequence_free(polys);
+    points_free(points);
+    bool_check_builder_free(builder);
+    points_free(cached->compressed_coeff);
+    free(cached);
+    // Note: check->round_polys may contain pointer data to be freed separately if dynamically allocated.
+}
+
+void test_compute_round_polynomial_initial_round(void) {
+    const size_t PHASE_SWITCH = 1;
+
+    // Create test points [1, 2]
+    Points *points = points_init(2, f128_zero());
+    points->elems[0] = f128_from_uint64(1);
+    points->elems[1] = f128_from_uint64(2);
+
+    // Create test polynomials
+    MLE_POLY_SEQUENCE *polys = mle_sequence_new(2, 4, f128_zero());
+    for (int i = 0; i < 4; ++i) {
+        polys->mle_poly[0].coeffs[i] = f128_from_uint64(11 * (i + 1));
+        polys->mle_poly[1].coeffs[i] = f128_from_uint64(111 * (i + 1));
+    }
+
+    // Compute p & q
+    MLE_POLY *p = &polys->mle_poly[0];
+    MLE_POLY *q = &polys->mle_poly[1];
+    MLE_POLY *p_and_q = mle_poly_from_constant(4, f128_zero());
+    for (int i = 0; i < 4; ++i) {
+        p_and_q->coeffs[i] = f128_bitand(p->coeffs[i], q->coeffs[i]);
+    }
+
+    // Evaluate p_and_q at points
+    F128 initial_claim = mle_poly_evaluate_at(p_and_q, points);
+
+    // Setup dummy algebraic package
+    Algebraic_Params dummy_params = { .input_size = 2, .output_size = 1 };
+    Algebraic_Functions dummy_funcs = {
+        .algebraic = and_package_algebraic,
+        .linear = and_package_linear,
+        .quadratic = and_package_quadratic
+    };
+
+    F128 gamma = f128_from_uint64(1234);
+    BoolCheckBuilder *builder = bool_check_builder_new(
+        PHASE_SWITCH, points, points_init(1, initial_claim), polys,
+        &dummy_params, &dummy_funcs);
+
+    BoolCheck *check = boolcheck_new(builder, gamma);
+
+    // Act
+    CompressedPoly *round_poly = boolcheck_round_polynomial(check);
+    UnivariatePolynomial *coeffs = uncompress_poly(round_poly, initial_claim);
+
+    // Assert
+    TEST_ASSERT_NOT_NULL(coeffs);
+    TEST_ASSERT_TRUE(coeffs->len > 0);
+    TEST_ASSERT_TRUE(f128_eq(check->claim, initial_claim));
+    TEST_ASSERT_EQUAL_UINT(1, check->round_polys_len);
+
+    // Cleanup
+    free(coeffs);
+    mle_poly_free(p_and_q);
+    mle_sequence_free(polys);
+    points_free(points);
+    bool_check_builder_free(builder);
+    boolcheck_free(check);
+}
+
+
+// Globals for signal recovery
+static jmp_buf jump_buffer;
+
+// Signal handler to simulate panic recovery
+void signal_handler(int sig) {
+    longjmp(jump_buffer, 1);
+}
+
+void test_compute_round_polynomial_exceeds_round_limit(void) {
+    const size_t PHASE_SWITCH = 2;
+
+    // Points: [1, 2, 3]
+    Points *points = points_init(3, f128_zero());
+    points->elems[0] = f128_from_uint64(1);
+    points->elems[1] = f128_from_uint64(2);
+    points->elems[2] = f128_from_uint64(3);
+
+    // Create p and q each with 8 elements
+    MLE_POLY_SEQUENCE *polys = mle_sequence_new(2, 8, f128_zero());
+    for (int i = 0; i < 8; ++i) {
+        polys->mle_poly[0].coeffs[i] = f128_from_uint64(i);
+        polys->mle_poly[1].coeffs[i] = f128_from_uint64(i + 10);
+    }
+
+    // Compute p & q
+    MLE_POLY *p = &polys->mle_poly[0];
+    MLE_POLY *q = &polys->mle_poly[1];
+    MLE_POLY *p_and_q = mle_poly_from_constant(8, f128_zero());
+    for (int i = 0; i < 8; ++i) {
+        p_and_q->coeffs[i] = f128_bitand(p->coeffs[i], q->coeffs[i]);
+    }
+
+    // Evaluate p_and_q at points
+    F128 initial_claim = mle_poly_evaluate_at(p_and_q, points);
+
+    // Setup algebraic package
+    Algebraic_Params dummy_params = { .input_size = 2, .output_size = 1 };
+    Algebraic_Functions dummy_funcs = {
+        .algebraic = and_package_algebraic,
+        .linear = and_package_linear,
+        .quadratic = and_package_quadratic
+    };
+
+    // Setup builder and boolcheck
+    F128 gamma = f128_from_uint64(1234);
+    BoolCheckBuilder *builder = bool_check_builder_new(
+        PHASE_SWITCH, points, points_init(1, initial_claim), polys,
+        &dummy_params, &dummy_funcs);
+
+    BoolCheck *check = boolcheck_new(builder, gamma);
+
+    // Add challenges equal to number of variables (3)
+    for (size_t i = 0; i < check->num_vars; ++i) {
+        points_push(check->challenges, f128_from_uint64(i));
+    }
+
+    // Setup signal handler for SIGABRT to simulate Rust panic catch
+    signal(SIGABRT, signal_handler);
+
+    if (setjmp(jump_buffer) == 0) {
+        // This should abort due to exceeding round limit
+        CompressedPoly *should_fail = boolcheck_round_polynomial(check);
+        TEST_FAIL_MESSAGE("Expected panic (assertion failure) did not occur.");
+    } else {
+        // Expected failure caught
+        TEST_PASS();
+    }
+
+    // Cleanup
+    mle_poly_free(p_and_q);
+    mle_sequence_free(polys);
+    points_free(points);
+    bool_check_builder_free(builder);
+    boolcheck_free(check);
+}
+
+void test_compute_round_polynomial_invalid_claim(void) {
+    const size_t PHASE_SWITCH = 1;    // Points: [1, 2]
+    Points *points = points_init(2, f128_zero());
+    points->elems[0] = f128_from_uint64(1);
+    points->elems[1] = f128_from_uint64(2);
+        // Polynomials p = [11, 22, 33, 44]
+    //            q = [111, 222, 333, 444]
+    MLE_POLY_SEQUENCE *polys = mle_sequence_new(2, 4, f128_zero());
+    for (int i = 0; i < 4; ++i) {
+        polys->mle_poly[0].coeffs[i] = f128_from_uint64(11 * (i + 1));
+        polys->mle_poly[1].coeffs[i] = f128_from_uint64(111 * (i + 1));
+    }
+
+    // Use incorrect claim (e.g., 999) instead of correct AND evaluation
+    F128 incorrect_claim = f128_from_uint64(999);
+
+    // Setup dummy algebraic package
+    Algebraic_Params dummy_params = { .input_size = 2, .output_size = 1 };
+    Algebraic_Functions dummy_funcs = {
+        .algebraic = and_package_algebraic,
+        .linear = and_package_linear,
+        .quadratic = and_package_quadratic
+    };
+
+    F128 gamma = f128_from_uint64(1234);
+    BoolCheckBuilder *builder = bool_check_builder_new(
+        PHASE_SWITCH, points, points_init(1, incorrect_claim), polys,
+        &dummy_params, &dummy_funcs);
+
+    BoolCheck *check = boolcheck_new(builder, gamma);
+
+    // Setup SIGABRT signal handler for simulated panic catch
+    signal(SIGABRT, signal_handler);
+
+    if (setjmp(jump_buffer) == 0) {
+        // This should trigger a panic because the claim is incorrect
+        CompressedPoly *should_fail = boolcheck_round_polynomial(check);
+        TEST_FAIL_MESSAGE("Expected panic due to invalid claim did not occur.");
+    } else {
+        // Expected failure caught
+        TEST_PASS();
+    }
+
+    // Cleanup
+    mle_sequence_free(polys);
+    bool_check_builder_free(builder);
+    boolcheck_free(check);
+}
+
+
+
+void test_compute_round_polynomial_correct_claim_update(void) {
+    const size_t PHASE_SWITCH = 1;
+
+    // Points = [1, 2]
+    Points *points = points_init(2, f128_zero());
+    points->elems[0] = f128_from_uint64(1);
+    points->elems[1] = f128_from_uint64(2);
+
+    // p = [11, 22, 33, 44], q = [111, 222, 333, 444]
+    MLE_POLY_SEQUENCE *polys = mle_sequence_new(2, 4, f128_zero());
+    for (int i = 0; i < 4; ++i) {
+        polys->mle_poly[0].coeffs[i] = f128_from_uint64(11 * (i + 1));
+        polys->mle_poly[1].coeffs[i] = f128_from_uint64(111 * (i + 1));
+    }
+
+    // Compute p & q
+    MLE_POLY *p = &polys->mle_poly[0];
+    MLE_POLY *q = &polys->mle_poly[1];
+    MLE_POLY *p_and_q = mle_poly_from_constant(4, f128_zero());
+    for (int i = 0; i < 4; ++i) {
+        p_and_q->coeffs[i] = f128_bitand(p->coeffs[i], q->coeffs[i]);
+    }
+
+    // Initial claim = (p & q)(points)
+    F128 initial_claim = mle_poly_evaluate_at(p_and_q, points);
+
+    // Setup algebraic package
+    Algebraic_Params params = { .input_size = 2, .output_size = 1 };
+    Algebraic_Functions funcs = {
+        .algebraic = and_package_algebraic,
+        .linear = and_package_linear,
+        .quadratic = and_package_quadratic
+    };
+
+    F128 gamma = f128_from_uint64(1234);
+    BoolCheckBuilder *builder = bool_check_builder_new(
+        PHASE_SWITCH, points, points_init(1, initial_claim), polys, &params, &funcs);
+
+    BoolCheck *check = boolcheck_new(builder, gamma);
+
+    // Compute the round polynomial and decompress it
+    CompressedPoly *round_poly = boolcheck_round_polynomial(check);
+    UnivariatePolynomial *coeffs = uncompress_poly(round_poly, initial_claim);
+
+    // Challenge r = 3
+    F128 r = f128_from_uint64(3);
+    boolcheck_bind(check, &r);
+
+    // Expect 4 coefficients
+    TEST_ASSERT_EQUAL_UINT(4, coeffs->len);
+
+    // updated_claim = c0 + c1*r + c2*r^2 + c3*r^3
+    F128 r2 = f128_mul(r, r);
+    F128 r3 = f128_mul(r2, r);
+    F128 term1 = f128_mul(coeffs->elems[1], r);
+    F128 term2 = f128_mul(coeffs->elems[2], r2);
+    F128 term3 = f128_mul(coeffs->elems[3], r3);
+    F128 updated_claim = f128_add(coeffs->elems[0], term1);
+    updated_claim = f128_add(updated_claim, term2);
+    updated_claim = f128_add(updated_claim, term3);
+
+    // Assert updated_claim == check->claim
+    TEST_ASSERT_TRUE(f128_eq(updated_claim, check->claim));
+
+    // Cleanup
+    free(coeffs);
+    mle_poly_free(p_and_q);
+    mle_sequence_free(polys);
+    points_free(points);
+    bool_check_builder_free(builder);
+    boolcheck_free(check);
+}
+
+
+// void test_current_round_initial_state(void) {
+//     // Create a default BoolCheck instance with no challenges added.
+//     Points *points = points_init(0, f128_zero());
+
+//     BoolCheck check = {
+//         .points = &points,
+//         .polys = default_polys_array(),  // use helper if available, else assign properly
+//         .extended_table = field_vec_default(),
+//         .poly_coords = field_vec_default(),
+//         .challenges = points_init(0, f128_zero()), // No challenges added yet
+//         .bit_mapping = bit_mapping_default(),
+//         .eq_sequence = mle_vec_default(),
+//         .round_polys = compressed_poly_vec_default(),
+//         .claim = f128_zero,
+//         .gammas = { f128_zero },
+//         .algebraic_operations = and_package_ref()
+//     };
+
+//     // Assert that the initial round is 0 because no challenges have been added yet.
+//     TEST_ASSERT_EQUAL_UINT64(0, boolcheck_current_round(&check));
+// }
