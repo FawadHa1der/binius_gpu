@@ -466,3 +466,190 @@ void test_new_andcheck_with_multiclaim(void) {
     // multi_claim_builder_free(prover_builder);
     // multi_claim_free(multiclaim_prover);
 }
+
+
+void test_compute_imaginary_rounds(void) {
+    // Set a phase switch parameter, which controls the folding phases.
+    const size_t PHASE_SWITCH = 2;
+    const size_t num_vars = 3;
+
+    // Construct input points
+    Points *points = points_init(num_vars, f128_zero());
+    for (size_t i = 0; i < num_vars; ++i) {
+        points->elems[i] = f128_from_uint64(i);
+    }
+
+    // Construct p and q as polynomials of length 1 << num_vars
+    size_t poly_len = 1 << num_vars;
+    MLE_POLY_SEQUENCE *polys = mle_sequence_new(2, poly_len, f128_zero());
+    for (size_t i = 0; i < 2; ++i) {
+        for (size_t j = 0; j < poly_len; ++j) {
+            polys->mle_poly[i].coeffs[j] = f128_from_uint64(j);
+        }
+    }
+
+    // Compute AND of p and q
+    MLE_POLY *p = &polys->mle_poly[0];
+    MLE_POLY *q = &polys->mle_poly[1];
+    MLE_POLY *pq = mle_poly_from_constant(poly_len, f128_zero());
+    for (size_t i = 0; i < poly_len; ++i) {
+        pq->coeffs[i] = f128_bitand(p->coeffs[i], q->coeffs[i]);
+    }
+
+    // Evaluate AND at points to get initial_claim
+    F128 initial_claim = mle_poly_evaluate_at(pq, points);
+    F128 current_claim = initial_claim;
+
+    // Set gamma and r
+    F128 gamma = f128_from_uint64(1234);
+    F128 r = f128_from_uint64(5678);
+
+    // Setup algebraic package
+    Algebraic_Params and_params;
+    and_params.input_size = 2;
+    and_params.output_size = 1;
+    Algebraic_Functions and_funcs;
+    and_funcs.algebraic = and_package_algebraic;
+    and_funcs.linear = and_package_linear;
+    and_funcs.quadratic = and_package_quadratic;
+
+    // Setup BoolCheckBuilder and BoolCheck
+    BoolCheckBuilder *builder = bool_check_builder_new(
+        PHASE_SWITCH, points, points_init(1, initial_claim), polys, &and_params, &and_funcs);
+    BoolCheck *boolcheck = boolcheck_new(builder, gamma);
+
+    // Validate initial extended_table
+    F128 expected_table[] = {
+        f128_zero(),
+        f128_from_uint64(1),
+        f128_from_uint64(1),
+        f128_from_uint64(2),
+        f128_from_uint64(3),
+        f128_from_uint64(1),
+        f128_from_uint64(2),
+        f128_from_uint64(2),
+        f128_zero(),
+        f128_from_uint64(4),
+        f128_from_uint64(5),
+        f128_from_uint64(1),
+        f128_from_uint64(6),
+        f128_from_uint64(7),
+        f128_from_uint64(1),
+        f128_from_uint64(2),
+        f128_from_uint64(2),
+        f128_zero(),
+        f128_from_uint64(4),
+        f128_from_uint64(4),
+        f128_zero(),
+        f128_from_uint64(4),
+        f128_from_uint64(4),
+        f128_zero(),
+        f128_zero(),
+        f128_zero(),
+        f128_zero()
+    };
+    for (size_t i = 0; i < 27; ++i) {
+        TEST_ASSERT_TRUE(f128_eq(boolcheck->extended_table->elems[i], expected_table[i]));
+    }
+
+    // Compute the round polynomial for the imaginary round
+    CompressedPoly *compressed_round_poly = boolcheck_round_polynomial(boolcheck);
+
+    // Check compressed coefficients
+    // These values should match the Rust test values
+    F128 expected_compressed[3] = {
+        (F128){.low = 0x000000000000000dULL, .high = 0xfa28000000000000}, // 332514690820570361331092984923254947853
+        f128_from_uint64(1),
+        f128_from_uint64(1)
+    };
+    for (int i = 0; i < 3; ++i) {
+        TEST_ASSERT_TRUE(f128_eq(compressed_round_poly->compressed_coeff->elems[i], expected_compressed[i]));
+    }
+
+    // Decompress the polynomial and check coefficients
+    UnivariatePolynomial *round_poly = uncompress_poly(compressed_round_poly, initial_claim);
+    F128 expected_decompressed[4] = {
+        (F128){.low = 0x000000000000000dULL, .high = 0xfa28000000000000},
+        (F128){.low = 0x000000000000000dULL, .high = 0xfa28000000000000},
+        f128_from_uint64(1),
+        f128_from_uint64(1)
+    };
+    for (int i = 0; i < 4; ++i) {
+        TEST_ASSERT_TRUE(f128_eq(round_poly->elems[i], expected_decompressed[i]));
+    }
+
+    // Evaluate the decompressed polynomial at r and verify the result
+    F128 eval_result = univariate_polynomial_evaluate_at(round_poly, r);
+    F128 expected_eval = (F128){.low = 0x0000001ebe1310a2, .high = 0xd5cb5d8000000000}; // 284181495769767592368287233794578256034
+    TEST_ASSERT_TRUE(f128_eq(eval_result, expected_eval));
+
+    // Bind r and verify updates
+    boolcheck_bind(boolcheck, &r);
+
+    // Validate updated extended_table (length 9)
+    F128 expected_table2[] = {
+        (F128){.low = 0x0000000001404154, .high = 0x6d0ea00000000000}, // 144961788882111902000582228079393390932
+        (F128){.low = 0x0000000001404156, .high = 0x6d0ea00000000000}, // 144961788882111902000582228079393390934
+        f128_from_uint64(2),
+        (F128){.low = 0x0000000001404150, .high = 0x6d0ea00000000000}, // 144961788882111902000582228079393390928
+        (F128){.low = 0x0000000001404152, .high = 0x6d0ea00000000000}, // 144961788882111902000582228079393390930
+        f128_from_uint64(2),
+        f128_from_uint64(4),
+        f128_from_uint64(4),
+        f128_zero()
+    };
+    for (size_t i = 0; i < 9; ++i) {
+        TEST_ASSERT_TRUE(f128_eq(boolcheck->extended_table->elems[i], expected_table2[i]));
+    }
+
+    // Validate updated claim
+    TEST_ASSERT_TRUE(f128_eq(boolcheck->claim, expected_eval));
+
+    // Validate challenge is recorded
+    TEST_ASSERT_EQUAL_UINT32(1, boolcheck->challenges->len);
+    TEST_ASSERT_TRUE(f128_eq(boolcheck->challenges->elems[0], r));
+
+    // Validate round_polys has one entry matching compressed_round_poly
+    TEST_ASSERT_EQUAL_UINT32(1, boolcheck->round_polys_len);
+    for (int i = 0; i < 3; ++i) {
+        TEST_ASSERT_TRUE(f128_eq(boolcheck->round_polys->compressed_coeff[0].elems[i], compressed_round_poly->compressed_coeff->elems[i]));
+    }
+
+    // Manually set poly_coords to values from 0 to (4*128)
+    size_t poly_coords_len = 4 * 128;
+    if (boolcheck->poly_coords) free(boolcheck->poly_coords);
+    boolcheck->poly_coords = points_init(poly_coords_len, f128_zero());
+    // boolcheck->poly_coords->len = poly_coords_len;
+    // boolcheck->poly_coords->elems = (F128*)malloc(sizeof(F128) * poly_coords_len);
+    for (size_t i = 0; i < poly_coords_len; ++i) {
+        boolcheck->poly_coords->elems[i] = f128_from_uint64(i);
+    }
+
+    // Call compute_algebraic(0, 1) and check output
+    F128 alg_res[3];
+    and_package_algebraic(&and_params, boolcheck->poly_coords, 0, 1, (F128*[]){alg_res, alg_res+1, alg_res+2});
+    // These constants must match the Rust expected values
+    F128 expected_alg[3] = {
+        (F128){.low = 0x6ab015702ab00d03, .high = 0xe722c5702ab00070}, // 307232209640963015187300467897455873283
+        (F128){.low = 0x35580ab815587601, .high = 0x929162b815580038}, // 194822172689813899653668252817418647041
+        (F128){.low = 0x8002aaa2a002c2d7, .high = 0x32f512a2a002a022}  // 67733890487442795093175766325246739159
+    };
+    for (int i = 0; i < 3; ++i) {
+        TEST_ASSERT_TRUE(f128_eq(alg_res[i], expected_alg[i]));
+    }
+
+    // Validate that the input polynomials are as expected
+    for (int idx = 0; idx < 2; ++idx) {
+        for (int j = 0; j < 8; ++j) {
+            TEST_ASSERT_TRUE(f128_eq(polys->mle_poly[idx].coeffs[j], f128_from_uint64(j)));
+        }
+    }
+
+    // Cleanup
+    mle_poly_free(pq);
+    mle_sequence_free(polys);
+    points_free(points);
+    bool_check_builder_free(builder);
+    boolcheck_free(boolcheck);
+    free(round_poly);
+}

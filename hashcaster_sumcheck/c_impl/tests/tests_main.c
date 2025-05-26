@@ -172,6 +172,7 @@ int main(void)
     RUN_TEST(test_extend_n_tables);
     RUN_TEST(test_new_andcheck1);
     RUN_TEST(test_new_andcheck_with_multiclaim);
+    RUN_TEST(test_compute_imaginary_rounds);
 
     
 
