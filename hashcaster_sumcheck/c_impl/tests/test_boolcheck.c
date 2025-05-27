@@ -1009,3 +1009,64 @@ void test_compute_round_polynomial_correct_claim_update(void) {
 //     // Assert that the initial round is 0 because no challenges have been added yet.
 //     TEST_ASSERT_EQUAL_UINT64(0, boolcheck_current_round(&check));
 // }
+
+
+
+void test_bind_single(void) {
+    const size_t PHASE_SWITCH = 1;
+
+    // Points = [1, 2]
+    Points *points = points_init(2, f128_zero());
+    points->elems[0] = f128_from_uint64(1);
+    points->elems[1] = f128_from_uint64(2);
+
+    // p = [11, 22, 33, 44], q = [111, 222, 333, 444]
+    MLE_POLY_SEQUENCE *polys = mle_sequence_new(2, 4, f128_zero());
+    for (int i = 0; i < 4; ++i) {
+        polys->mle_poly[0].coeffs[i] = f128_from_uint64(11 * (i + 1));
+        polys->mle_poly[1].coeffs[i] = f128_from_uint64(111 * (i + 1));
+    }
+
+    // Compute p & q
+    MLE_POLY *p = &polys->mle_poly[0];
+    MLE_POLY *q = &polys->mle_poly[1];
+    MLE_POLY *p_and_q = mle_poly_from_constant(4, f128_zero());
+    for (int i = 0; i < 4; ++i) {
+        p_and_q->coeffs[i] = f128_bitand(p->coeffs[i], q->coeffs[i]);
+    }
+
+    // Initial claim
+    F128 initial_claim = mle_poly_evaluate_at(p_and_q, points);
+
+    // Setup algebraic package
+    Algebraic_Params params = { .input_size = 2, .output_size = 1 };
+    Algebraic_Functions funcs = {
+        .algebraic = and_package_algebraic,
+        .linear = and_package_linear,
+        .quadratic = and_package_quadratic
+    };
+
+    F128 gamma = f128_from_uint64(1234);
+    BoolCheckBuilder *builder = bool_check_builder_new(
+        PHASE_SWITCH, points, points_init(1, initial_claim), polys, &params, &funcs);
+
+    BoolCheck *check = boolcheck_new(builder, gamma);
+
+    // Bind a challenge
+    F128 r = f128_from_uint64(42);
+    boolcheck_bind(check, &r);
+
+    // Verify challenge was added
+    TEST_ASSERT_EQUAL_UINT(1, check->challenges->len);
+    TEST_ASSERT_TRUE(f128_eq(check->challenges->elems[0], r));
+
+    // Verify extended_table is not empty
+    TEST_ASSERT_TRUE(check->extended_table->len > 0);
+
+    // Cleanup
+    mle_poly_free(p_and_q);
+    mle_sequence_free(polys);
+    points_free(points);
+    bool_check_builder_free(builder);
+    boolcheck_free(check);
+}

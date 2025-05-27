@@ -19,4 +19,7 @@ void test_compute_round_polynomial_initial_round(void) ;
 void test_compute_round_polynomial_exceeds_round_limit(void) ;
 void test_compute_round_polynomial_invalid_claim(void) ;
 void test_compute_round_polynomial_correct_claim_update(void) ;
+void test_bind_single(void) ;
+
+
 #endif

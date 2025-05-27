@@ -178,6 +178,7 @@ int main(void)
     RUN_TEST(test_compute_round_polynomial_exceeds_round_limit);
     RUN_TEST(test_compute_round_polynomial_invalid_claim);
     RUN_TEST(test_compute_round_polynomial_correct_claim_update);
+    RUN_TEST(test_bind_single);
 
     
 

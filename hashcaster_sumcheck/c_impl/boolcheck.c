@@ -537,3 +537,8 @@ void boolcheck_output_free(BoolCheckOutput* out) {
     points_free(out->frob_evals);
     free(out);
 }
+
+size_t boolcheck_current_round(BoolCheck* boolcheck){
+    // Returns the current round based on the number of challenges added
+    return boolcheck->challenges->len;
+}
