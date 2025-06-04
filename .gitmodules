@@ -2,5 +2,5 @@
 	path = sumcheck/third-party/Catch2
 	url = https://github.com/catchorg/Catch2.git
 [submodule "sumcheck/third-party/nvbench"]
-	path = third-party/nvbench
+	path = sumcheck/third-party/nvbench
 	url = https://github.com/NVIDIA/nvbench.git
