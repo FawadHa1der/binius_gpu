@@ -1,4 +1,4 @@
-[submodule "third-party/Catch2"]
+[submodule "sumcheck/third-party/Catch2"]
 	path = sumcheck/third-party/Catch2
 	url = https://github.com/catchorg/Catch2.git
 [submodule "sumcheck/third-party/nvbench"]
