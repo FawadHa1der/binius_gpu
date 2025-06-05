@@ -81,16 +81,78 @@ void fold_small(
 	}
 }
 
+// __host__ __device__ void compute_sum(
+// 	uint32_t sum[INTS_PER_VALUE],
+// 	uint32_t bitsliced_batch[BITS_WIDTH],
+// 	const uint32_t num_eval_points_being_summed_unpadded
+// ) {
+// 	BitsliceUtils<BITS_WIDTH>::bitslice_untranspose(bitsliced_batch);
+
+// 	memset(sum, 0, INTS_PER_VALUE * sizeof(uint32_t));
+
+// 	for (uint32_t i = 0; i < min(BITS_WIDTH, INTS_PER_VALUE * num_eval_points_being_summed_unpadded); ++i) {
+// 		sum[i % INTS_PER_VALUE] ^= bitsliced_batch[i];
+// 	}
+// }
+
+static inline uint32_t parity32(uint32_t x) {
+    x ^= x >> 16;
+    x ^= x >> 8;
+    x ^= x >> 4;
+    x ^= x >> 2;
+    x ^= x >> 1;
+    return x & 1;
+}
+
 __host__ __device__ void compute_sum(
 	uint32_t sum[INTS_PER_VALUE],
 	uint32_t bitsliced_batch[BITS_WIDTH],
-	const uint32_t num_eval_points_being_summed_unpadded
+	const uint32_t       num_eval_points
 ) {
-	BitsliceUtils<BITS_WIDTH>::bitslice_untranspose(bitsliced_batch);
+    /* 0. clear the output ------------------------------------------------ */
+    for (uint32_t lane = 0; lane < INTS_PER_VALUE; ++lane)
+        sum[lane] = 0;
 
-	memset(sum, 0, INTS_PER_VALUE * sizeof(uint32_t));
+    /* 1. block anatomy --------------------------------------------------- */
+    const uint32_t full_blocks  = num_eval_points >> 5;        /* N / 32 */
+    const uint32_t tail_points  = num_eval_points & 31u;       /* N % 32 */
+    const uint32_t total_blocks = full_blocks + (tail_points ? 1u : 0u);
 
-	for (uint32_t i = 0; i < min(BITS_WIDTH, INTS_PER_VALUE * num_eval_points_being_summed_unpadded); ++i) {
-		sum[i % INTS_PER_VALUE] ^= bitsliced_batch[i];
-	}
+    /* 2. iterate over every bit position and every 32-bit limb ---------- */
+    for (uint32_t bit = 0; bit < 32u; ++bit) {
+        for (uint32_t lane = 0; lane < INTS_PER_VALUE; ++lane) {
+
+            uint32_t bit_parity = 0;
+
+            /* ---- full 32-point blocks --------------------------------- */
+            for (uint32_t blk = 0; blk < full_blocks; ++blk) {
+
+#if BIT_MAJOR_LAYOUT
+                uint32_t slice =
+                    bitsliced_batch[ blk*BITS_WIDTH + bit*INTS_PER_VALUE + lane ];
+#else
+                uint32_t slice =
+                    bitsliced_batch[ blk*BITS_WIDTH + lane*32u + bit ];
+#endif
+                bit_parity ^= parity32(slice);                /* XOR parity */
+            }
+
+            /* ---- tail block (0 < tail_points < 32) -------------------- */
+            if (tail_points) {
+
+#if BIT_MAJOR_LAYOUT
+                uint32_t slice =
+                    bitsliced_batch[ full_blocks*BITS_WIDTH + bit*INTS_PER_VALUE + lane ];
+#else
+                uint32_t slice =
+                    bitsliced_batch[ full_blocks*BITS_WIDTH + lane*32u + bit ];
+#endif
+                const uint32_t mask = (1u << tail_points) - 1u;
+                bit_parity ^= parity32(slice & mask);
+            }
+
+            /* ---- drop the single parity bit into the result limb ------ */
+            sum[lane] ^= bit_parity << bit;                   /* XOR – safe for reuse */
+        }
+    }
 }
