@@ -60,15 +60,31 @@ private:
 
 			cudaDeviceSynchronize();
 		} else {
-			for (uint32_t col_idx = 0; col_idx < num_cols; ++col_idx) {
-				// For small lists, copy over the later half into top of new batch, multiply by r, and add
-				// Assume source lives on the CPU
 
-				uint32_t *this_col_src = source + BITS_WIDTH * col_idx;
-				uint32_t *this_col_dst = destination + BITS_WIDTH * col_idx;
+			uint32_t *d_src, *d_dst, *d_coeff;
+			cudaMalloc(&d_src,  sizeof(uint32_t) * BITS_WIDTH * num_cols);
+			cudaMalloc(&d_dst,  sizeof(uint32_t) * BITS_WIDTH * num_cols);
+			cudaMalloc(&d_coeff,sizeof(uint32_t) * BITS_WIDTH);
 
-				fold_small(this_col_src, this_col_dst, coefficient, list_len);
-			}
+			cudaMemcpy(d_src,   source,      sizeof(uint32_t)*BITS_WIDTH*num_cols,
+					cudaMemcpyHostToDevice);
+			cudaMemcpy(d_coeff, coefficient, sizeof(uint32_t)*BITS_WIDTH,
+					cudaMemcpyHostToDevice);
+
+			/* --- kernel launch ------------------------------------------------- */
+			const uint32_t threads = THREADS_PER_BLOCK;               // 128
+			const uint32_t blocks  = (num_cols + threads - 1) / threads;
+
+			fold_small_kernel<TOWER_HEIGHT><<<blocks, threads>>>(
+					d_src, d_dst, d_coeff, (uint32_t)list_len, num_cols);
+
+			cudaMemcpy(destination, d_dst,
+					sizeof(uint32_t)*BITS_WIDTH*num_cols, cudaMemcpyDeviceToHost);
+
+			/* --- cleanup ------------------------------------------------------- */
+			cudaFree(d_src);  cudaFree(d_dst);  cudaFree(d_coeff);			
+			cudaDeviceSynchronize();
+
 		}
 	}
 

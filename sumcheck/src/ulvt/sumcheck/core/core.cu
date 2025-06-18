@@ -81,6 +81,38 @@ void fold_small(
 	}
 }
 
+template <> 
+__global__ void fold_small_kernel<TOWER_HEIGHT>(uint32_t*  d_src,
+                                  uint32_t*        d_dst,
+                                  uint32_t*  d_coeff,
+                                  uint32_t        list_len,
+                                  uint32_t        num_cols)
+{
+    const uint32_t col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col >= num_cols) return;
+
+    const uint32_t half_len = list_len >> 1;
+
+    /* Pointers to the current column -------------------------------- */
+    const uint32_t* src = d_src + col * BITS_WIDTH;
+    uint32_t*       dst = d_dst + col * BITS_WIDTH;
+
+    /* Local scratch (lives in registers / local memory) ------------- */
+    uint32_t batch[BITS_WIDTH];
+#pragma unroll
+    for (int i = 0; i < BITS_WIDTH; ++i) {
+        uint32_t v = src[i];
+        batch[i] = (v >> half_len) ^ v;          // bring upper half down + XOR
+    }
+
+    uint32_t prod[BITS_WIDTH];
+    multiply_unrolled<TOWER_HEIGHT>(batch, d_coeff, prod);
+
+#pragma unroll
+    for (int i = 0; i < BITS_WIDTH; ++i)
+        dst[i] = src[i] ^ prod[i];               // final xor into destination
+}
+
 // __host__ __device__ void compute_sum(
 // 	uint32_t sum[INTS_PER_VALUE],
 // 	uint32_t bitsliced_batch[BITS_WIDTH],

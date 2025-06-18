@@ -30,3 +30,10 @@ __host__ __device__ void compute_sum(
 	uint32_t bitsliced_batch[BITS_WIDTH],
 	const uint32_t num_eval_points_being_summed_unpadded
 );
+
+template <int HEIGHT>
+__global__ void fold_small_kernel(uint32_t*  d_src,
+                                  uint32_t*        d_dst,
+                                  uint32_t*  d_coeff,
+                                  uint32_t        list_len,
+                                  uint32_t        num_cols);
