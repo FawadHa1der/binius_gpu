@@ -6,6 +6,76 @@
 #include "../utils/constants.hpp"
 #include "core.cuh"
 
+
+template<>
+__global__ void evaluate_composition_kernel<TOWER_HEIGHT>(const uint32_t* __restrict__ d_src,
+                                            uint32_t*       __restrict__ d_dst,
+                                            uint32_t        composition_size,
+                                            uint32_t        original_evals_per_col,
+                                            uint32_t        row_stride,        // words
+                                            uint32_t        num_rows)
+{
+    const uint32_t row = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row >= num_rows) return;
+
+    /*  locate the first batch for this row                                */
+    const uint32_t* first_batch = d_src + row * row_stride;
+    uint32_t*       acc         = d_dst + row * BITS_WIDTH;
+
+#pragma unroll
+    for (int i = 0; i < BITS_WIDTH; ++i)          /* memcpy */
+        acc[i] = first_batch[i];
+
+    const uint32_t operand_stride = original_evals_per_col * INTS_PER_VALUE; // words
+
+    /*  multiply the remaining operands into the accumulator               */
+    for (uint32_t op = 1; op < composition_size; ++op) {
+        const uint32_t* nth_batch = first_batch + op * operand_stride;
+        multiply_unrolled<TOWER_HEIGHT>(acc, nth_batch, acc);                // in-place
+    }
+}
+
+
+void evaluate_composition_gpu(const uint32_t* h_batches,   // all rows, on host
+                              uint32_t*       h_results,   // one row → BITS_WIDTH words
+                              uint32_t        composition_size,
+                              uint32_t        original_evals_per_col,
+                              uint32_t        num_rows)
+{
+    /*  ----  device buffers ------------------------------------------- */
+    const size_t row_stride_words =
+        static_cast<size_t>(composition_size) *
+        original_evals_per_col * INTS_PER_VALUE;
+
+    const size_t total_words = row_stride_words * num_rows;
+
+    uint32_t *d_src, *d_dst;
+    cudaMalloc(&d_src, total_words * sizeof(uint32_t));
+    cudaMalloc(&d_dst, num_rows   * BITS_WIDTH * sizeof(uint32_t));
+
+    cudaMemcpy(d_src, h_batches,
+               total_words * sizeof(uint32_t),
+               cudaMemcpyHostToDevice);
+
+    /*  ----  launch ---------------------------------------------------- */
+    const int threads = BITS_WIDTH;
+    const int blocks  = (num_rows + threads - 1) / threads;
+
+    evaluate_composition_kernel<TOWER_HEIGHT><<<blocks, threads>>>(
+        d_src, d_dst,
+        composition_size,
+        original_evals_per_col,
+        static_cast<uint32_t>(row_stride_words),
+        num_rows);
+
+    /*  ----  copy back ------------------------------------------------- */
+    cudaMemcpy(h_results, d_dst,
+               num_rows * BITS_WIDTH * sizeof(uint32_t),
+               cudaMemcpyDeviceToHost);
+
+    cudaFree(d_src); cudaFree(d_dst);
+}
+
 __host__ __device__ void evaluate_composition_on_batch_row(
 	const uint32_t* first_batch_of_row,
 	uint32_t* batch_composition_destination,
@@ -113,19 +183,19 @@ __global__ void fold_small_kernel<TOWER_HEIGHT>(uint32_t*  d_src,
         dst[i] = src[i] ^ prod[i];               // final xor into destination
 }
 
-// __host__ __device__ void compute_sum(
-// 	uint32_t sum[INTS_PER_VALUE],
-// 	uint32_t bitsliced_batch[BITS_WIDTH],
-// 	const uint32_t num_eval_points_being_summed_unpadded
-// ) {
-// 	BitsliceUtils<BITS_WIDTH>::bitslice_untranspose(bitsliced_batch);
+__host__ __device__ void compute_sum(
+    uint32_t sum[INTS_PER_VALUE],
+    uint32_t bitsliced_batch[BITS_WIDTH],
+    const uint32_t num_eval_points_being_summed_unpadded
+) {
+    BitsliceUtils<BITS_WIDTH>::bitslice_untranspose(bitsliced_batch);
 
-// 	memset(sum, 0, INTS_PER_VALUE * sizeof(uint32_t));
+    memset(sum, 0, INTS_PER_VALUE * sizeof(uint32_t));
 
-// 	for (uint32_t i = 0; i < min(BITS_WIDTH, INTS_PER_VALUE * num_eval_points_being_summed_unpadded); ++i) {
-// 		sum[i % INTS_PER_VALUE] ^= bitsliced_batch[i];
-// 	}
-// }
+    for (uint32_t i = 0; i < min(BITS_WIDTH, INTS_PER_VALUE * num_eval_points_being_summed_unpadded); ++i) {
+        sum[i % INTS_PER_VALUE] ^= bitsliced_batch[i];
+    }
+}
 
 // static inline uint32_t parity32(uint32_t x) {
 //     x ^= x >> 16;
@@ -138,9 +208,9 @@ __global__ void fold_small_kernel<TOWER_HEIGHT>(uint32_t*  d_src,
 
 // // without unrolling, potentially faster
 // __host__ __device__ void compute_sum(
-// 	uint32_t sum[INTS_PER_VALUE],
-// 	uint32_t bitsliced_batch[BITS_WIDTH],
-// 	const uint32_t       num_eval_points
+//  uint32_t sum[INTS_PER_VALUE],
+//  uint32_t bitsliced_batch[BITS_WIDTH],
+//  const uint32_t       num_eval_points
 // ) {
 //     /* 0. clear the output ------------------------------------------------ */
 //     for (uint32_t lane = 0; lane < INTS_PER_VALUE; ++lane)
@@ -202,13 +272,11 @@ __global__ void fold_small_kernel<TOWER_HEIGHT>(uint32_t*  d_src,
 *  out in memory.                                                             *
 *****************************************************************************/
 
-#define INTS_PER_VALUE    4      // 128-bit value  → 4 × 32-bit limbs
 #define BIT_MAJOR_LAYOUT  0      // slice index =  block*W + bit*L + lane
 #define LANE_MAJOR_LAYOUT 1      // slice index =  block*W + lane*32 + bit
 static_assert(BIT_MAJOR_LAYOUT ^ LANE_MAJOR_LAYOUT, "pick exactly one");
 
 #define BITS_PER_LIMB  32
-#define BITS_WIDTH    (BITS_PER_LIMB * INTS_PER_VALUE)
 
 /* --------------------------------------------------------------------- */
 /* Kernel: one thread per bit, one block per limb                        */
@@ -255,35 +323,35 @@ __global__ void compute_sum_kernel(uint32_t      *sum_out,   // OUT: INTS_PER_VA
 
 /* --------------------------------------------------------------------- */
 /* Convenience launcher (host side)                                      */
+/* Bitsliced batch lives on the device                                   */
 /* --------------------------------------------------------------------- */
-void compute_sum(
-	uint32_t sum[INTS_PER_VALUE],
-	uint32_t bitsliced_batch[BITS_WIDTH],
-	const uint32_t       num_eval_points)     /* N ≥ 1 */
+void compute_sum_gpu(
+    uint32_t sum[INTS_PER_VALUE],
+    uint32_t bitsliced_batch[BITS_WIDTH],
+    const uint32_t       num_eval_points)     /* N ≥ 1 */
 {
     /* 1. Work geometry ------------------------------------------------- */
     const uint32_t blocks_host = (num_eval_points + 31) >> 5;   /* ceil(N/32) */
-    const size_t   slice_words = static_cast<size_t>(blocks_host) * BITS_WIDTH;
 
     /* 2. Allocate device memory --------------------------------------- */
-    uint32_t *d_slices = nullptr, *d_sum = nullptr;
-    cudaMalloc(&d_slices, slice_words * sizeof(uint32_t));
+    uint32_t  *d_sum = nullptr;
+    // cudaMalloc(&d_slices, slice_words * sizeof(uint32_t));
     cudaMalloc(&d_sum,    INTS_PER_VALUE * sizeof(uint32_t));
 
     /* 3. Copy slices to the device ------------------------------------ */
-    cudaMemcpy(d_slices, bitsliced_batch,
-               slice_words * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_slices, bitsliced_batch,
+    //            slice_words * sizeof(uint32_t), cudaMemcpyHostToDevice);
 
     /* 4. Launch: one 32-thread block per limb ------------------------- */
     dim3 grid (INTS_PER_VALUE);
     dim3 block(32);
-    compute_sum_kernel<<<grid, block>>>(d_sum, d_slices, num_eval_points);
+    compute_sum_kernel<<<grid, block>>>(d_sum, bitsliced_batch, num_eval_points);
 
-    /* 5. Copy the result back ----------------------------------------- */
+    // /* 5. Copy the result back ----------------------------------------- */
     cudaMemcpy(sum, d_sum,
                INTS_PER_VALUE * sizeof(uint32_t), cudaMemcpyDeviceToHost);
 
-    /* 6. Cleanup ------------------------------------------------------- */
-    cudaFree(d_slices);
+    // /* 6. Cleanup ------------------------------------------------------- */
+    // cudaFree(d_slices);
     cudaFree(d_sum);
 }

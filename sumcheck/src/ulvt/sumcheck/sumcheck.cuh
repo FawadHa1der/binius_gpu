@@ -177,7 +177,9 @@ public:
 			// If the number of evals fits in a single batch, use the CPU
 
 			// 1. Calculate the products of the multilinear evaluations
-			evaluate_composition_on_batch_row(cpu_multilinear_evaluations, multilinear_products, COMPOSITION_SIZE, 32);
+			// evaluate_composition_on_batch_row(cpu_multilinear_evaluations, multilinear_products, COMPOSITION_SIZE, 32);
+
+			evaluate_composition_gpu(cpu_multilinear_evaluations, multilinear_products, COMPOSITION_SIZE, 32, 1);
 
 			// For each interpolation point, fold according to that point, and load the result into "folded_at_point"
 
@@ -194,8 +196,11 @@ public:
 					COMPOSITION_SIZE
 				);
 
-				evaluate_composition_on_batch_row(
-					folded_at_point, folded_products_sums + (BITS_WIDTH * interpolation_point), COMPOSITION_SIZE, 32
+				// evaluate_composition_on_batch_row(
+				// 	folded_at_point, folded_products_sums + (BITS_WIDTH * interpolation_point), COMPOSITION_SIZE, 32
+				// );
+				evaluate_composition_gpu(
+					folded_at_point, folded_products_sums + (BITS_WIDTH * interpolation_point), COMPOSITION_SIZE, 32, 1
 				);
 			}
 
@@ -248,16 +253,16 @@ public:
 				multilinear_products, gpu_multilinear_products, BITS_WIDTH * sizeof(uint32_t), cudaMemcpyDeviceToHost
 			);
 
-			cudaFree(gpu_multilinear_products);
-			cudaFree(gpu_folded_products_sums);
-
-			compute_sum(sum, multilinear_products, 32);
+			compute_sum_gpu(sum, gpu_multilinear_products, 32);
 
 			for (int interpolation_point = 0; interpolation_point < INTERPOLATION_POINTS; ++interpolation_point) {
 				uint32_t *point = points + interpolation_point * INTS_PER_VALUE;
 
-				compute_sum(point, folded_products_sums + BITS_WIDTH * interpolation_point, 32);
+				compute_sum_gpu(point, gpu_folded_products_sums + BITS_WIDTH * interpolation_point, 32);
 			}
+			cudaFree(gpu_multilinear_products);
+			cudaFree(gpu_folded_products_sums);
+
 		}
 	};
 
