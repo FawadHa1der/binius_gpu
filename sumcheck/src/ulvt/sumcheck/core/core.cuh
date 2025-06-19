@@ -58,3 +58,9 @@ void evaluate_composition_gpu(const uint32_t* h_batches,   // all rows, on host
                               uint32_t        original_evals_per_col,
                               uint32_t        num_rows);
 
+__global__ void pack_first_batches(uint32_t* buf,
+                                   uint32_t src_stride,  // words
+                                   uint32_t dst_stride,  // words (=BITS_WIDTH)
+                                   uint32_t columns);
+
+

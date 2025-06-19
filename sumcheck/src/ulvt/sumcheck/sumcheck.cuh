@@ -24,9 +24,12 @@ private:
 
 	uint32_t round = 0;
 
-	uint32_t *cpu_multilinear_evaluations, *gpu_multilinear_evaluations;
+	// uint32_t *cpu_multilinear_evaluations, *gpu_multilinear_evaluations;
+	uint32_t  *gpu_multilinear_evaluations;
 
 	uint32_t *gpu_coefficients;
+	uint32_t *gpu_multilinear_products, *gpu_folded_products_sums;
+	uint32_t *gpu_folded_at_point;
 
 	void fold_list_halves(
 		uint32_t *source,
@@ -57,33 +60,27 @@ private:
 				dst_original_evals_per_column,
 				num_cols
 			);
+			cudaFree(gpu_coefficient);
 
 			cudaDeviceSynchronize();
 		} else {
 
-			uint32_t *d_src, *d_dst, *d_coeff;
-			cudaMalloc(&d_src,  sizeof(uint32_t) * BITS_WIDTH * num_cols);
-			cudaMalloc(&d_dst,  sizeof(uint32_t) * BITS_WIDTH * num_cols);
-			cudaMalloc(&d_coeff,sizeof(uint32_t) * BITS_WIDTH);
-
-			cudaMemcpy(d_src,   source,      sizeof(uint32_t)*BITS_WIDTH*num_cols,
-					cudaMemcpyHostToDevice);
-			cudaMemcpy(d_coeff, coefficient, sizeof(uint32_t)*BITS_WIDTH,
-					cudaMemcpyHostToDevice);
-
 			/* --- kernel launch ------------------------------------------------- */
 			const uint32_t threads = THREADS_PER_BLOCK;               // 128
 			const uint32_t blocks  = (num_cols + threads - 1) / threads;
+			uint32_t *gpu_coefficient;
+
+			cudaMalloc(&gpu_coefficient, sizeof(uint32_t) * BITS_WIDTH);
+
+			cudaMemcpy(gpu_coefficient, coefficient, sizeof(uint32_t) * BITS_WIDTH, cudaMemcpyHostToDevice);
+
 
 			fold_small_kernel<TOWER_HEIGHT><<<blocks, threads>>>(
-					d_src, d_dst, d_coeff, (uint32_t)list_len, num_cols);
+					source, destination, gpu_coefficient, (uint32_t)list_len, num_cols);
 
-			cudaMemcpy(destination, d_dst,
-					sizeof(uint32_t)*BITS_WIDTH*num_cols, cudaMemcpyDeviceToHost);
-
-			/* --- cleanup ------------------------------------------------------- */
-			cudaFree(d_src);  cudaFree(d_dst);  cudaFree(d_coeff);			
 			cudaDeviceSynchronize();
+			cudaFree(gpu_coefficient);
+
 
 		}
 	}
@@ -97,8 +94,9 @@ public:
 
 	Sumcheck(const std::vector<uint32_t> &evals_span, const bool benchmarking) {
 		const uint32_t *evals = evals_span.data();
-		cpu_multilinear_evaluations = new uint32_t[BITS_WIDTH * COMPOSITION_SIZE];
+		// cpu_multilinear_evaluations = new uint32_t[BITS_WIDTH * COMPOSITION_SIZE];
 		cudaMalloc(&gpu_multilinear_evaluations, sizeof(uint32_t) * TOTAL_INTS);
+		cudaMalloc(&gpu_folded_at_point, sizeof(uint32_t) * BITS_WIDTH * COMPOSITION_SIZE);
 
 		if (benchmarking) {
 			start_before_memcpy = std::chrono::high_resolution_clock::now();
@@ -136,12 +134,23 @@ public:
 			gpu_coefficients, coefficients, BITS_WIDTH * INTERPOLATION_POINTS * sizeof(uint32_t), cudaMemcpyHostToDevice
 		);
 
+		cudaMalloc(&gpu_multilinear_products, BITS_WIDTH * sizeof(uint32_t));
+		cudaMemset(gpu_multilinear_products, 0, BITS_WIDTH * sizeof(uint32_t));
+
+		cudaMalloc(&gpu_folded_products_sums, INTERPOLATION_POINTS * BITS_WIDTH * sizeof(uint32_t));
+		cudaMemset(gpu_folded_products_sums, 0, INTERPOLATION_POINTS * BITS_WIDTH * sizeof(uint32_t));
+
 		if (benchmarking) {
 			start_raw = std::chrono::high_resolution_clock::now();
 		}
+
 	}
 
-	~Sumcheck() { delete[] cpu_multilinear_evaluations; }
+	~Sumcheck() 
+	{ 
+		// delete[] cpu_multilinear_evaluations; 
+		cudaFree(gpu_multilinear_evaluations);
+	}
 
 	void this_round_messages(
 		std::array<uint32_t, INTS_PER_VALUE> &sum_span,
@@ -167,11 +176,11 @@ public:
 
 		const uint32_t active_threads_folded = std::min(num_batches_per_folded_multilinear, THREADS);
 
-		uint32_t multilinear_products[BITS_WIDTH];
+		//uint32_t multilinear_products[BITS_WIDTH];
 
-		uint32_t *folded_products_sums = new uint32_t[INTERPOLATION_POINTS * BITS_WIDTH];
-
-		uint32_t *gpu_multilinear_products, *gpu_folded_products_sums;
+		// uint32_t *folded_products_sums = new uint32_t[INTERPOLATION_POINTS * BITS_WIDTH];
+		cudaMemset(gpu_multilinear_products, 0, BITS_WIDTH * sizeof(uint32_t));
+		cudaMemset(gpu_folded_products_sums, 0, INTERPOLATION_POINTS * BITS_WIDTH * sizeof(uint32_t));
 
 		if (num_eval_points_per_multilinear_padded == 32) {
 			// If the number of evals fits in a single batch, use the CPU
@@ -179,16 +188,17 @@ public:
 			// 1. Calculate the products of the multilinear evaluations
 			// evaluate_composition_on_batch_row(cpu_multilinear_evaluations, multilinear_products, COMPOSITION_SIZE, 32);
 
-			evaluate_composition_gpu(cpu_multilinear_evaluations, multilinear_products, COMPOSITION_SIZE, 32, 1);
+			evaluate_composition_gpu(gpu_multilinear_evaluations, gpu_multilinear_products, COMPOSITION_SIZE, 32, 1);
 
 			// For each interpolation point, fold according to that point, and load the result into "folded_at_point"
 
 			for (uint32_t interpolation_point = 0; interpolation_point < INTERPOLATION_POINTS; ++interpolation_point) {
-				uint32_t folded_at_point[BITS_WIDTH * COMPOSITION_SIZE] = {0};
+
+				cudaMemset(gpu_folded_at_point, 0, sizeof(uint32_t) * BITS_WIDTH * COMPOSITION_SIZE);
 
 				fold_list_halves(
-					cpu_multilinear_evaluations,
-					folded_at_point,
+					gpu_multilinear_evaluations,
+					gpu_folded_at_point,
 					coefficients + BITS_WIDTH * interpolation_point,
 					num_eval_points_per_multilinear_unpadded,
 					32,
@@ -200,28 +210,21 @@ public:
 				// 	folded_at_point, folded_products_sums + (BITS_WIDTH * interpolation_point), COMPOSITION_SIZE, 32
 				// );
 				evaluate_composition_gpu(
-					folded_at_point, folded_products_sums + (BITS_WIDTH * interpolation_point), COMPOSITION_SIZE, 32, 1
+					gpu_folded_at_point, gpu_folded_products_sums + (BITS_WIDTH * interpolation_point), COMPOSITION_SIZE, 32, 1
 				);
 			}
 
-			compute_sum(sum, multilinear_products, num_eval_points_per_multilinear_unpadded);
+			compute_sum_gpu(sum, gpu_multilinear_products, num_eval_points_per_multilinear_unpadded);
 
 			for (int interpolation_point = 0; interpolation_point < INTERPOLATION_POINTS; ++interpolation_point) {
-				compute_sum(
+				compute_sum_gpu(
 					points + interpolation_point * INTS_PER_VALUE,
-					folded_products_sums +
+					gpu_folded_products_sums +
 						num_eval_points_per_folded_multilinear_padded * INTS_PER_VALUE * interpolation_point,
 					num_eval_points_per_folded_multilinear_unpadded
 				);
 			}
 		} else {
-			cudaMalloc(&gpu_multilinear_products, BITS_WIDTH * sizeof(uint32_t));
-
-			cudaMemset(gpu_multilinear_products, 0, BITS_WIDTH * sizeof(uint32_t));
-
-			cudaMalloc(&gpu_folded_products_sums, INTERPOLATION_POINTS * BITS_WIDTH * sizeof(uint32_t));
-
-			cudaMemset(gpu_folded_products_sums, 0, INTERPOLATION_POINTS * BITS_WIDTH * sizeof(uint32_t));
 
 			compute_compositions<INTERPOLATION_POINTS, COMPOSITION_SIZE, EVALS_PER_MULTILINEAR>
 				<<<BLOCKS, THREADS_PER_BLOCK>>>(
@@ -236,33 +239,13 @@ public:
 
 			cudaDeviceSynchronize();
 
-			cudaMemcpy(
-				multilinear_products, gpu_multilinear_products, BITS_WIDTH * sizeof(uint32_t), cudaMemcpyDeviceToHost
-			);
-
-			cudaMemcpy(
-				folded_products_sums,
-				gpu_folded_products_sums,
-				INTERPOLATION_POINTS * BITS_WIDTH * sizeof(uint32_t),
-				cudaMemcpyDeviceToHost
-			);
-
-			cudaDeviceSynchronize();
-
-			cudaMemcpy(
-				multilinear_products, gpu_multilinear_products, BITS_WIDTH * sizeof(uint32_t), cudaMemcpyDeviceToHost
-			);
-
 			compute_sum_gpu(sum, gpu_multilinear_products, 32);
-
 			for (int interpolation_point = 0; interpolation_point < INTERPOLATION_POINTS; ++interpolation_point) {
 				uint32_t *point = points + interpolation_point * INTS_PER_VALUE;
-
 				compute_sum_gpu(point, gpu_folded_products_sums + BITS_WIDTH * interpolation_point, 32);
 			}
-			cudaFree(gpu_multilinear_products);
-			cudaFree(gpu_folded_products_sums);
-
+			// cudaFree(gpu_multilinear_products);
+			// cudaFree(gpu_folded_products_sums);
 		}
 	};
 
@@ -279,8 +262,8 @@ public:
 		// Load the folded columns
 		if (num_eval_points_per_multilinear <= 32) {
 			fold_list_halves(
-				cpu_multilinear_evaluations,
-				cpu_multilinear_evaluations,
+				gpu_multilinear_evaluations,
+				gpu_multilinear_evaluations,
 				coefficient,
 				num_eval_points_per_multilinear,
 				32,
@@ -303,18 +286,23 @@ public:
 
 		if (new_num_evals_per_multilinear == 32) {
 			// Now we use cpu to store the evaluations instead of gpu
-			for (int column_idx = 0; column_idx < COMPOSITION_SIZE; ++column_idx) {
-				cudaMemcpy(
-					cpu_multilinear_evaluations + column_idx * BITS_WIDTH,
-					gpu_multilinear_evaluations + column_idx * (EVALS_PER_MULTILINEAR * INTS_PER_VALUE),
-					sizeof(uint32_t) * BITS_WIDTH,
-					cudaMemcpyDeviceToHost
-				);
-			}
+			// for (int column_idx = COMPOSITION_SIZE - 1; column_idx >= 0; --column_idx) {
+			// 	cudaMemcpy(
+			// 		gpu_multilinear_evaluations + column_idx * BITS_WIDTH,
+			// 		gpu_multilinear_evaluations + column_idx *
+			// 			(EVALS_PER_MULTILINEAR * INTS_PER_VALUE),
+			// 		sizeof(uint32_t) * BITS_WIDTH,
+			// 		cudaMemcpyDeviceToDevice);
+			// }
+			// cudaDeviceSynchronize();
+			dim3 grid(COMPOSITION_SIZE);
+			dim3 block(BITS_WIDTH);
+			pack_first_batches<<<grid, block>>>(
+					gpu_multilinear_evaluations,
+					EVALS_PER_MULTILINEAR * INTS_PER_VALUE,
+					BITS_WIDTH,
+					COMPOSITION_SIZE);
 
-			cudaDeviceSynchronize();
-
-			cudaFree(gpu_multilinear_evaluations);
 		}
 
 		++round;

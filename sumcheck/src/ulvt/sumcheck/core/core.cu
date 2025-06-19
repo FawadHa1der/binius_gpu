@@ -49,31 +49,31 @@ void evaluate_composition_gpu(const uint32_t* h_batches,   // all rows, on host
 
     const size_t total_words = row_stride_words * num_rows;
 
-    uint32_t *d_src, *d_dst;
-    cudaMalloc(&d_src, total_words * sizeof(uint32_t));
-    cudaMalloc(&d_dst, num_rows   * BITS_WIDTH * sizeof(uint32_t));
+    // uint32_t *d_src, *d_dst;
+    // cudaMalloc(&d_src, total_words * sizeof(uint32_t));
+    // cudaMalloc(&d_dst, num_rows   * BITS_WIDTH * sizeof(uint32_t));
 
-    cudaMemcpy(d_src, h_batches,
-               total_words * sizeof(uint32_t),
-               cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_src, h_batches,
+    //            total_words * sizeof(uint32_t),
+    //            cudaMemcpyHostToDevice);
 
     /*  ----  launch ---------------------------------------------------- */
     const int threads = BITS_WIDTH;
     const int blocks  = (num_rows + threads - 1) / threads;
 
     evaluate_composition_kernel<TOWER_HEIGHT><<<blocks, threads>>>(
-        d_src, d_dst,
+        h_batches, h_results,
         composition_size,
         original_evals_per_col,
         static_cast<uint32_t>(row_stride_words),
         num_rows);
 
     /*  ----  copy back ------------------------------------------------- */
-    cudaMemcpy(h_results, d_dst,
-               num_rows * BITS_WIDTH * sizeof(uint32_t),
-               cudaMemcpyDeviceToHost);
+    // cudaMemcpy(h_results, d_dst,
+    //            num_rows * BITS_WIDTH * sizeof(uint32_t),
+    //            cudaMemcpyDeviceToHost);
 
-    cudaFree(d_src); cudaFree(d_dst);
+    // cudaFree(d_src); cudaFree(d_dst);
 }
 
 __host__ __device__ void evaluate_composition_on_batch_row(
@@ -354,4 +354,18 @@ void compute_sum_gpu(
     // /* 6. Cleanup ------------------------------------------------------- */
     // cudaFree(d_slices);
     cudaFree(d_sum);
+}
+
+
+__global__ void pack_first_batches(uint32_t* buf,
+                                   uint32_t src_stride,  // words
+                                   uint32_t dst_stride,  // words (=BITS_WIDTH)
+                                   uint32_t columns)
+{
+    uint32_t col = blockIdx.x;
+    uint32_t idx = threadIdx.x;
+    if (col >= columns || idx >= dst_stride) return;
+
+    buf[col*dst_stride + idx] =
+        buf[col*src_stride + idx];
 }
